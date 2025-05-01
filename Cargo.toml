@@ -1,6 +1,12 @@
 [package]
-name = "lexi_core"
+name = "lexi_db"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
+[lib]
+name = "lexi_db"
+crate-type = ["cdylib"]
+
+[dependencies.pyo3]
+version = "0.24"
+features = ["extension-module"]

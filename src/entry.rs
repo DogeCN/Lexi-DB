@@ -10,17 +10,6 @@ pub struct Entry {
     pub exchanges: Vec<String>,
 }
 
-impl Entry {
-    pub fn new(phonetic: &str, definition: &str, translation: &str, exchanges: Vec<&str>) -> Self {
-        Entry {
-            phonetic: phonetic.to_owned(),
-            definition: definition.to_owned(),
-            translation: translation.to_owned(),
-            exchanges: exchanges.into_iter().map(|s| s.to_owned()).collect(),
-        }
-    }
-}
-
 impl Serialize for Entry {
     fn serialize(&self) -> Vec<u8> {
         let mut stack = vec![&self.phonetic, &self.definition, &self.translation];
@@ -48,12 +37,12 @@ pub mod tests {
     use super::*;
 
     pub fn generate_entry() -> Entry {
-        Entry::new(
-            "phonetic",
-            "definition",
-            "translation",
-            vec!["exchange1", "exchange2"],
-        )
+        Entry {
+            phonetic: "phonetic".to_owned(),
+            definition: "definition".to_owned(),
+            translation: "translation".to_owned(),
+            exchanges: vec!["exchange1".to_owned(), "exchange2".to_owned()],
+        }
     }
 
     #[test]

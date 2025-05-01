@@ -1,5 +1,3 @@
-use std::convert::Into;
-
 pub trait Serialize {
     fn serialize(&self) -> Vec<u8>;
 }

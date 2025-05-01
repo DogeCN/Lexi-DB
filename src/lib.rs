@@ -1,8 +1,54 @@
 mod db;
 mod entry;
-
+#[allow(unused_imports)]
 use db::{DBCreator, DBReader};
 use entry::Entry;
+use pyo3::prelude::*;
+
+#[pyclass]
+struct PyCreator {
+    db: DBCreator<Entry>,
+}
+
+#[pymethods]
+impl PyCreator {
+    #[new]
+    fn new(path: String) -> Self {
+        let db = DBCreator::new(&path);
+        PyCreator { db }
+    }
+
+    fn insert(
+        &mut self,
+        word: String,
+        phonetic: String,
+        definition: String,
+        translation: String,
+        exchanges: Vec<String>,
+    ) -> PyResult<()> {
+        self.db.insert(
+            &word,
+            Entry {
+                phonetic,
+                definition,
+                translation,
+                exchanges,
+            },
+        );
+        Ok(())
+    }
+
+    fn export(&mut self) -> PyResult<()> {
+        self.db.export()?;
+        Ok(())
+    }
+}
+
+#[pymodule]
+fn lexi_db(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_class::<PyCreator>()?;
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
