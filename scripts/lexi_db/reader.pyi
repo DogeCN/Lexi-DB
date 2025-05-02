@@ -1,7 +1,19 @@
-from .entry import PyEntry
+class PyEntry:
+    phonetic: str
+    definition: str
+    translation: str
+    exchanges: list[str]
+
+    def __init__(
+        self,
+        phonetic: str,
+        definition: str,
+        translation: str,
+        exchanges: list[str],
+    ): ...
 
 class PyDBReader:
-    def __init__(path: str): ...
+    def __init__(self, path: str): ...
     def __getitem__(self, key: str) -> PyEntry | None: ...
     def __len__(self) -> int: ...
     def __contains__(self, key: str) -> bool: ...

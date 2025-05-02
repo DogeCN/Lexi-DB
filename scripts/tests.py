@@ -1,7 +1,11 @@
-import creator, reader
+from lexi_db.creator import PyDBCreator, PyEntry
+from lexi_db.reader import PyDBReader
 
-print("Hello World")
-print(creator.__name__)
-print(reader.__name__)
-print(creator.__dict__)
-print(reader.__dict__)
+value = PyEntry("phonetic", "definition", "translation", ["exchange1", "exchanges2"])
+
+creator = PyDBCreator("test.db")
+creator.insert("test1", value)
+creator.export()
+
+reader = PyDBReader("test.db")
+print(reader["test1"].exchanges)

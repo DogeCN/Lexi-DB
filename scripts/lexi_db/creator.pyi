@@ -1,6 +1,18 @@
-from .entry import PyEntry
+class PyEntry:
+    phonetic: str
+    definition: str
+    translation: str
+    exchanges: list[str]
+
+    def __init__(
+        self,
+        phonetic: str,
+        definition: str,
+        translation: str,
+        exchanges: list[str],
+    ): ...
 
 class PyDBCreator:
-    def __init__(path: str): ...
+    def __init__(self, path: str): ...
     def insert(self, key: str, value: PyEntry): ...
     def export(self): ...
