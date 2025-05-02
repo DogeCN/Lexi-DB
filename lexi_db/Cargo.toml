@@ -1,0 +1,3 @@
+[package]
+name = "lexi_db"
+edition = "2024"

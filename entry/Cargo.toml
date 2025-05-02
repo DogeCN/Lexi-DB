@@ -1,0 +1,11 @@
+[package]
+name = "entry"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies.lexi_db]
+path = "../lexi_db"
+
+[dependencies.pyo3]
+version = "0.24"
+features = ["extension-module"]

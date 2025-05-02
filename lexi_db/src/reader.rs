@@ -1,12 +1,10 @@
 use super::Deserialize;
 use std::{
     collections::HashMap,
-    error::Error,
     fs::File,
-    io::{Read, Seek, SeekFrom},
+    io::{Read, Result, Seek, SeekFrom},
     marker::PhantomData,
     path::PathBuf,
-    result::Result,
 };
 
 pub struct DBReader<T> {
@@ -17,13 +15,13 @@ pub struct DBReader<T> {
 }
 
 impl<T: Deserialize> DBReader<T> {
-    pub fn from(path: &str) -> Result<DBReader<T>, Box<dyn Error>> {
+    pub fn from(path: &str) -> Result<DBReader<T>> {
         let path = PathBuf::from(path);
         let mut file = File::open(&path)?;
 
         let mut buf = [0u8; 8];
         file.read_exact(&mut buf)?;
-        let lenth = u64::from_le_bytes(buf) as usize;
+        let lenth = u64::deserialize(&buf) as usize;
         let mut bin = vec![0u8; lenth];
         file.read_exact(&mut bin)?;
 
@@ -32,9 +30,9 @@ impl<T: Deserialize> DBReader<T> {
         while cursor < lenth {
             let key_len = bin[cursor] as usize;
             cursor += 1;
-            let key = String::from_utf8(bin[cursor..cursor + key_len].to_vec())?;
+            let key = String::deserialize(&bin[cursor..cursor + key_len]);
             cursor += key_len;
-            let offset = u64::from_le_bytes(bin[cursor..cursor + 8].try_into()?);
+            let offset = u64::deserialize(&bin[cursor..cursor + 8]);
             cursor += 8;
 
             indexes.insert(key, offset);
@@ -54,7 +52,19 @@ impl<T: Deserialize> DBReader<T> {
         }
     }
 
-    pub fn read(&mut self, offset: u64) -> Result<T, Box<dyn Error>> {
+    pub fn len(&self) -> usize {
+        self.indexes.len()
+    }
+
+    pub fn keys(&self) -> Vec<&String> {
+        self.indexes.keys().collect()
+    }
+
+    pub fn contains(&self, key: &str) -> bool {
+        self.indexes.contains_key(key)
+    }
+
+    pub fn read(&mut self, offset: u64) -> Result<T> {
         self.file.seek(SeekFrom::Start(self.offset + offset))?;
         let mut buf = [0u8; 2];
         self.file.read_exact(&mut buf)?;

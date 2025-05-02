@@ -15,6 +15,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "creator"
+version = "0.1.0"
+dependencies = [
+ "entry",
+ "lexi_db",
+ "pyo3",
+]
+
+[[package]]
+name = "entry"
+version = "0.1.0"
+dependencies = [
+ "lexi_db",
+ "pyo3",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -28,10 +45,7 @@ checksum = "f4c7245a08504955605670dbf141fceab975f15ca21570696aebe9d2e71576bd"
 
 [[package]]
 name = "lexi_db"
-version = "0.1.0"
-dependencies = [
- "pyo3",
-]
+version = "0.0.0"
 
 [[package]]
 name = "libc"
@@ -139,6 +153,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1885c039570dc00dcb4ff087a89e185fd56bae234ddc7f056a945bf36467248d"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "reader"
+version = "0.1.0"
+dependencies = [
+ "entry",
+ "lexi_db",
+ "pyo3",
 ]
 
 [[package]]

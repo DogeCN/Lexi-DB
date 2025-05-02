@@ -24,6 +24,20 @@ impl Deserialize for String {
     }
 }
 
+impl Serialize for u64 {
+    fn serialize(&self) -> Vec<u8> {
+        self.to_le_bytes().to_vec()
+    }
+}
+
+impl Deserialize for u64 {
+    fn deserialize(data: &[u8]) -> Self {
+        let mut buf = [0; 8];
+        buf.copy_from_slice(data);
+        u64::from_le_bytes(buf)
+    }
+}
+
 impl<T: Serialize> Serialize for Vec<T> {
     fn serialize(&self) -> Vec<u8> {
         let mut result = Vec::new();

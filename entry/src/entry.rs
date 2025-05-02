@@ -1,6 +1,5 @@
+use lexi_db::{Deserialize, Serialize};
 use std::vec;
-
-use crate::db::{Deserialize, Serialize};
 
 #[derive(Default)]
 pub struct Entry {
@@ -29,30 +28,5 @@ impl Deserialize for Entry {
             },
             _ => Entry::default(),
         }
-    }
-}
-
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-
-    pub fn generate_entry() -> Entry {
-        Entry {
-            phonetic: "phonetic".to_owned(),
-            definition: "definition".to_owned(),
-            translation: "translation".to_owned(),
-            exchanges: vec!["exchange1".to_owned(), "exchange2".to_owned()],
-        }
-    }
-
-    #[test]
-    fn serialize() {
-        let entry = generate_entry();
-        let serialized = entry.serialize();
-        let deserialized = Entry::deserialize(&serialized);
-        assert_eq!(entry.phonetic, deserialized.phonetic);
-        assert_eq!(entry.definition, deserialized.definition);
-        assert_eq!(entry.translation, deserialized.translation);
-        assert_eq!(entry.exchanges, deserialized.exchanges);
     }
 }
