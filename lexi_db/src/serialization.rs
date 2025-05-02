@@ -41,8 +41,9 @@ impl Deserialize for u64 {
 impl<T: Serialize> Serialize for Vec<T> {
     fn serialize(&self) -> Vec<u8> {
         self.iter()
-            .flat_map(|item| item.serialize().into_iter().chain(std::iter::once(0u8)))
-            .collect()
+            .map(|item| item.serialize())
+            .collect::<Vec<_>>()
+            .join(&[0u8][..])
     }
 }
 
