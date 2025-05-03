@@ -1,5 +1,5 @@
 [workspace]
-members = ["entry", "lexi_db", "creator", "reader", "zip"]
+members = ["entry", "lexi_db", "creator", "reader"]
 resolver = "3"
 
 [profile.release]
