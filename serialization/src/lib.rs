@@ -1,21 +1,9 @@
-use std::io::{Read, Result, Write};
-
 pub trait Serialize {
     fn serialize(&self) -> Vec<u8>;
-
-    fn to(&self, w: &mut impl Write) -> Result<()> {
-        w.write_all(&self.serialize())
-    }
 }
 
 pub trait Deserialize: Sized {
     fn deserialize(data: &[u8]) -> Self;
-
-    fn from(r: &mut impl Read) -> Result<Self> {
-        let mut buf = vec![0u8; size_of::<Self>()];
-        r.read_exact(&mut buf)?;
-        Ok(Self::deserialize(&buf))
-    }
 }
 
 impl Serialize for String {

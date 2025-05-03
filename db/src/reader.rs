@@ -10,7 +10,8 @@ use std::{
 pub struct DBReader<T> {
     _marker: PhantomData<T>,
     pub indexes: HashMap<String, (u32, u16)>,
-    value: File,
+    temp: String,
+    value: Option<File>,
 }
 
 impl<T: Deserialize> DBReader<T> {
@@ -39,7 +40,8 @@ impl<T: Deserialize> DBReader<T> {
         Ok(DBReader::<T> {
             _marker: PhantomData,
             indexes,
-            value: File::open(temp)?,
+            temp: temp.to_owned(),
+            value: Some(File::open(temp)?),
         })
     }
 
@@ -63,9 +65,17 @@ impl<T: Deserialize> DBReader<T> {
     }
 
     pub fn read(&mut self, offset: u64, lenth: usize) -> Result<T> {
-        self.value.seek(SeekFrom::Start(offset))?;
+        let mut file = self.value.as_ref().unwrap();
+        file.seek(SeekFrom::Start(offset))?;
         let mut value = vec![0u8; lenth];
-        self.value.read_exact(&mut value)?;
+        file.read_exact(&mut value)?;
         Ok(T::deserialize(&value))
+    }
+}
+
+impl<T> Drop for DBReader<T> {
+    fn drop(&mut self) {
+        self.value.take();
+        let _ = std::fs::remove_file(&self.temp);
     }
 }
