@@ -5,16 +5,20 @@ use std::io::{Error, ErrorKind, Read, Result, Write};
 const WINDOW_SIZE: usize = 4096;
 const LOOKAHEAD_BUF: usize = 258;
 
-pub struct LZ77Compressor<Inner: Write> {
-    window: VecDeque<u8>,
+pub struct Compressor<Inner: Write> {
+    window: Vec<u8>, // 固定大小滑动窗口
+    window_pos: usize, // 环形索引
+    window_filled: usize, // 当前窗口已填充字节数
     buffer: Vec<u8>,
     inner: Inner,
 }
 
-impl<Inner: Write> LZ77Compressor<Inner> {
+impl<Inner: Write> Compressor<Inner> {
     pub fn new(inner: Inner) -> Self {
         Self {
-            window: VecDeque::with_capacity(WINDOW_SIZE),
+            window: vec![0; WINDOW_SIZE],
+            window_pos: 0,
+            window_filled: 0,
             buffer: Vec::with_capacity(LOOKAHEAD_BUF),
             inner,
         }
@@ -37,18 +41,21 @@ impl<Inner: Write> LZ77Compressor<Inner> {
 
     fn find_longest_match(&self) -> (u16, usize) {
         let max_match = min(self.buffer.len(), LOOKAHEAD_BUF);
-        let window_len = self.window.len();
         let mut best = (0, 0);
-        for start in 0..window_len {
+        let win_len = self.window_filled;
+        // 正确回溯 window_pos 前的所有历史数据
+        for i in 1..=win_len {
             let mut match_len = 0;
-            while match_len < max_match && start + match_len < window_len {
-                if self.window[start + match_len] != self.buffer[match_len] {
+            while match_len < max_match {
+                let win_idx = (self.window_pos + WINDOW_SIZE - i + match_len) % WINDOW_SIZE;
+                if match_len >= i { break; } // 不能越过历史边界
+                if self.window[win_idx] != self.buffer[match_len] {
                     break;
                 }
                 match_len += 1;
             }
             if match_len > best.1 && match_len >= 3 {
-                let distance = (window_len - start) as u16;
+                let distance = i as u16;
                 best = (distance, match_len);
                 if match_len == max_match {
                     break;
@@ -60,16 +67,18 @@ impl<Inner: Write> LZ77Compressor<Inner> {
 
     fn update_window(&mut self, advance: usize) {
         let take = min(advance, self.buffer.len());
-        for b in self.buffer.drain(..take) {
-            if self.window.len() == WINDOW_SIZE {
-                self.window.pop_front();
+        for &b in &self.buffer[..take] {
+            self.window[self.window_pos] = b;
+            self.window_pos = (self.window_pos + 1) % WINDOW_SIZE;
+            if self.window_filled < WINDOW_SIZE {
+                self.window_filled += 1;
             }
-            self.window.push_back(b);
         }
+        self.buffer.drain(..take);
     }
 }
 
-impl<Inner: Write> Write for LZ77Compressor<Inner> {
+impl<Inner: Write> Write for Compressor<Inner> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         self.buffer.extend_from_slice(buf);
         self.process()?;
@@ -84,13 +93,13 @@ impl<Inner: Write> Write for LZ77Compressor<Inner> {
     }
 }
 
-impl<Inner: Write> Drop for LZ77Compressor<Inner> {
+impl<Inner: Write> Drop for Compressor<Inner> {
     fn drop(&mut self) {
         let _ = self.flush();
     }
 }
 
-pub struct LZ77Decompressor<Inner: Read> {
+pub struct Decompressor<Inner: Read> {
     window: VecDeque<u8>,
     input_buffer: Vec<u8>,
     output_buffer: Vec<u8>,
@@ -98,7 +107,7 @@ pub struct LZ77Decompressor<Inner: Read> {
     eof: bool, // 标记输入流是否结束
 }
 
-impl<Inner: Read> LZ77Decompressor<Inner> {
+impl<Inner: Read> Decompressor<Inner> {
     pub fn new(inner: Inner) -> Self {
         Self {
             window: VecDeque::with_capacity(WINDOW_SIZE),
@@ -171,7 +180,7 @@ impl<Inner: Read> LZ77Decompressor<Inner> {
     }
 }
 
-impl<Inner: Read> Read for LZ77Decompressor<Inner> {
+impl<Inner: Read> Read for Decompressor<Inner> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         while self.output_buffer.is_empty() {
             let mut temp = [0; 1024];
@@ -180,7 +189,10 @@ impl<Inner: Read> Read for LZ77Decompressor<Inner> {
                 self.eof = true; // 标记输入已结束
                 self.process()?; // 最后一次尝试处理残留数据
                 if !self.input_buffer.is_empty() {
-                    return Err(Error::new(ErrorKind::InvalidData, "Trailing data after EOF"));
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Trailing data after EOF",
+                    ));
                 }
                 break;
             }
@@ -206,14 +218,14 @@ mod tests {
 
         let mut compressed = Vec::new();
         {
-            let mut compressor = LZ77Compressor::new(&mut compressed);
+            let mut compressor = Compressor::new(&mut compressed);
             compressor.write_all(data)?;
             compressor.flush()?;
         }
 
         let mut decompressed = Vec::new();
         {
-            let mut decompressor = LZ77Decompressor::new(compressed.as_slice());
+            let mut decompressor = Decompressor::new(compressed.as_slice());
             decompressor.read_to_end(&mut decompressed)?;
         }
 
@@ -227,7 +239,7 @@ mod tests {
 
         let mut compressed = Vec::new();
         {
-            let mut compressor = LZ77Compressor::new(&mut compressed);
+            let mut compressor = Compressor::new(&mut compressed);
             compressor.write_all(data)?;
             compressor.flush()?;
         }
@@ -235,7 +247,7 @@ mod tests {
 
         let mut decompressed = Vec::new();
         {
-            let mut decompressor = LZ77Decompressor::new(compressed.as_slice());
+            let mut decompressor = Decompressor::new(compressed.as_slice());
             decompressor.read_to_end(&mut decompressed)?;
         }
 
@@ -249,7 +261,7 @@ mod tests {
 
         let mut compressed = Vec::new();
         {
-            let mut compressor = LZ77Compressor::new(&mut compressed);
+            let mut compressor = Compressor::new(&mut compressed);
             compressor.write_all(&data)?;
             compressor.flush()?;
         }
@@ -257,7 +269,7 @@ mod tests {
 
         let mut decompressed = Vec::new();
         {
-            let mut decompressor = LZ77Decompressor::new(compressed.as_slice());
+            let mut decompressor = Decompressor::new(compressed.as_slice());
             decompressor.read_to_end(&mut decompressed)?;
         }
 
@@ -275,7 +287,7 @@ mod tests {
 
         let mut compressed = Vec::new();
         {
-            let mut compressor = LZ77Compressor::new(&mut compressed);
+            let mut compressor = Compressor::new(&mut compressed);
             for chunk in &chunks {
                 compressor.write_all(chunk)?;
             }
@@ -284,7 +296,7 @@ mod tests {
 
         let mut decompressed = Vec::new();
         {
-            let mut decompressor = LZ77Decompressor::new(compressed.as_slice());
+            let mut decompressor = Decompressor::new(compressed.as_slice());
             decompressor.read_to_end(&mut decompressed)?;
         }
 
@@ -313,14 +325,14 @@ mod tests {
 
         let mut compressed = Vec::new();
         {
-            let mut compressor = LZ77Compressor::new(&mut compressed);
+            let mut compressor = Compressor::new(&mut compressed);
             compressor.write_all(&data)?;
             compressor.flush()?;
         }
 
         let mut decompressed = Vec::new();
         {
-            let mut decompressor = LZ77Decompressor::new(compressed.as_slice());
+            let mut decompressor = Decompressor::new(compressed.as_slice());
             decompressor.read_to_end(&mut decompressed)?;
         }
 
@@ -331,24 +343,24 @@ mod tests {
     #[test]
     fn invalid_data_handling() -> Result<()> {
         // 测试用例1: 不完整的字面量
-        let mut decompressor = LZ77Decompressor::new([0xFFu8].as_ref());
+        let mut decompressor = Decompressor::new([0xFFu8].as_ref());
         let mut buf = Vec::new();
         assert!(decompressor.read_to_end(&mut buf).is_err());
 
         // 测试用例2: 无效的匹配标记（只有2字节）
-        let mut decompressor = LZ77Decompressor::new([0x01, 0x02].as_ref());
+        let mut decompressor = Decompressor::new([0x01, 0x02].as_ref());
         let mut buf = Vec::new();
         assert!(decompressor.read_to_end(&mut buf).is_err());
 
         // 测试用例3: 非法偏移量（offset=0）
-        let mut decompressor = LZ77Decompressor::new([0x00, 0x00, 0x05].as_ref());
+        let mut decompressor = Decompressor::new([0x00, 0x00, 0x05].as_ref());
         let mut buf = Vec::new();
         let result = decompressor.read_to_end(&mut buf);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().kind(), ErrorKind::InvalidData);
 
         // 测试用例4: 非法长度（length=258）
-        let mut decompressor = LZ77Decompressor::new([0x10, 0x00, 0xFF].as_ref());
+        let mut decompressor = Decompressor::new([0x10, 0x00, 0xFF].as_ref());
         let mut buf = Vec::new();
         let result = decompressor.read_to_end(&mut buf);
         assert!(result.is_err());
@@ -364,12 +376,12 @@ mod tests {
 
         // 不调用flush，依赖Drop自动处理
         {
-            let mut compressor = LZ77Compressor::new(&mut compressed);
+            let mut compressor = Compressor::new(&mut compressed);
             compressor.write_all(data)?;
         } // 此处自动调用drop，触发flush
 
         let mut decompressed = Vec::new();
-        let mut decompressor = LZ77Decompressor::new(compressed.as_slice());
+        let mut decompressor = Decompressor::new(compressed.as_slice());
         decompressor.read_to_end(&mut decompressed)?;
 
         assert_eq!(data.as_slice(), &decompressed);
