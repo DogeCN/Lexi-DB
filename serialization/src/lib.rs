@@ -1,9 +1,21 @@
+use std::io::{Read, Result, Write};
+
 pub trait Serialize {
     fn serialize(&self) -> Vec<u8>;
+
+    fn to(&self, w: &mut impl Write) -> Result<()> {
+        w.write_all(&self.serialize())
+    }
 }
 
 pub trait Deserialize: Sized {
     fn deserialize(data: &[u8]) -> Self;
+
+    fn from(r: &mut impl Read) -> Result<Self> {
+        let mut buf = vec![0u8; size_of::<Self>()];
+        r.read_exact(&mut buf)?;
+        Ok(Self::deserialize(&buf))
+    }
 }
 
 impl Serialize for String {
@@ -24,19 +36,24 @@ impl Deserialize for String {
     }
 }
 
-impl Serialize for u64 {
-    fn serialize(&self) -> Vec<u8> {
-        self.to_le_bytes().to_vec()
-    }
+macro_rules! impl_serialize_for_int {
+    ($($t:ty),*) => {
+        $(
+            impl Serialize for $t {
+                fn serialize(&self) -> Vec<u8> {
+                    self.to_le_bytes().to_vec()
+                }
+            }
+            impl Deserialize for $t {
+                fn deserialize(data: &[u8]) -> Self {
+                    <$t>::from_le_bytes(data.try_into().unwrap())
+                }
+            }
+        )*
+    };
 }
 
-impl Deserialize for u64 {
-    fn deserialize(data: &[u8]) -> Self {
-        let mut buf = [0; 8];
-        buf.copy_from_slice(data);
-        u64::from_le_bytes(buf)
-    }
-}
+impl_serialize_for_int!(u64, u32, u16);
 
 impl<T: Serialize> Serialize for Vec<T> {
     fn serialize(&self) -> Vec<u8> {

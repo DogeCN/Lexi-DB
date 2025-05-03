@@ -1,4 +1,4 @@
-use lexi_db::{Deserialize, Serialize};
+use serialization::{Deserialize, Serialize};
 use std::vec;
 
 #[derive(Default)]

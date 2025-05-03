@@ -1,5 +1,5 @@
+use db::DBReader;
 use entry::{Entry, PyEntry};
-use lexi_db::DBReader;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -10,9 +10,9 @@ struct PyDBReader {
 #[pymethods]
 impl PyDBReader {
     #[new]
-    fn new(path: &str) -> PyResult<Self> {
+    fn new(path: &str, temp: &str) -> PyResult<Self> {
         Ok(PyDBReader {
-            db: DBReader::from(path)?,
+            db: DBReader::from(path, temp)?,
         })
     }
 

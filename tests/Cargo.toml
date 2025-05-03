@@ -1,5 +1,5 @@
 [package]
-name = "entry"
+name = "tests"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,7 +8,3 @@ path = "../db"
 
 [dependencies.serialization]
 path = "../serialization"
-
-[dependencies.pyo3]
-version = "0.24"
-features = ["extension-module"]

@@ -11,8 +11,8 @@ crate-type = ["cdylib"]
 version = "0.24"
 features = ["extension-module"]
 
-[dependencies.lexi_db]
-path = "../lexi_db"
+[dependencies.db]
+path = "../db"
 
 [dependencies.entry]
 path = "../entry"

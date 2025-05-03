@@ -1,5 +1,5 @@
+use db::DBCreator;
 use entry::{Entry, PyEntry};
-use lexi_db::DBCreator;
 use pyo3::prelude::*;
 
 #[pyclass]
