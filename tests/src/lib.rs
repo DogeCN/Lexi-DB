@@ -1,10 +1,11 @@
 #![cfg(test)]
+
 use db::{DBCreator, DBReader};
 
 #[test]
 fn test_db() {
     let mut db: DBCreator<String> = DBCreator::new("test.db");
-    for i in 0..100 {
+    for i in 0..1000 {
         db.insert(&format!("key{}", i), format!("value{}", i));
     }
     db.export().unwrap();
