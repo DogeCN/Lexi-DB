@@ -1,20 +1,16 @@
 #![cfg(test)]
 use db::{DBCreator, DBReader};
-use serialization::Serialize;
 
 #[test]
 fn test_db() {
     let mut db: DBCreator<String> = DBCreator::new("test.db");
-    db.insert("key1", "value1");
+    for i in 0..100 {
+        db.insert(&format!("key{}", i), format!("value{}", i));
+    }
     db.export().unwrap();
 
     let mut reader: DBReader<String> = DBReader::from("test.db", "test.values").unwrap();
 
-    assert_eq!(reader.get("key1"), Some("value1".to_owned()));
-    assert_eq!(reader.get("key2"), None);
-}
-
-#[test]
-fn test_serialize() {
-    dbg!(6u16.serialize());
+    assert_eq!(reader.get("key0"), Some("value0".to_owned()));
+    assert_eq!(reader.get("key"), None);
 }

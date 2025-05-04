@@ -36,39 +36,29 @@ macro_rules! impl_uint {
 
             impl Serialize for $t {
                 fn serialize(&self) -> Vec<u8> {
-                    let mut n = *self;
-                    let bytes: Vec<u8> = std::iter::from_fn(|| {
-                        if n == 0 { None } else {
-                            let b = (n & 0xFF) as u8;
-                            n >>= 8;
-                            Some(b)
-                        }
-                    }).collect();
-                    let len = bytes.len().max(1);
-                    if len == 1 {
-                        return vec![*self as u8];
+                    let mut n = self.clone();
+                    let mut buf = Vec::new();
+                    buf.push(0);
+                    while n > 0 {
+                        buf.push((n & 0xFF) as u8);
+                        n >>= 8;
                     }
-                    let high5 = (bytes[len - 1] >> 3) & 0x1F;
-                    let mut buf = vec![(high5 << 3) | ((len - 1) as u8 & 0x07)];
-                    buf.extend(bytes.iter().take(len - 1).cloned());
-                    buf.push(bytes[len - 1] & 0x07);
+                    buf[0] = (buf.len() - 1) as u8;
                     buf
                 }
             }
 
             impl Deserialize for $t {
                 fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
-                    let mut first = [0u8; 1];
-                    r.read_exact(&mut first)?;
-                    if first[0] >> 3 == 0 {
-                        return Ok(first[0] as $t);
-                    }
-                    let high5 = first[0] >> 3;
-                    let len = (first[0] & 0x07) + 1;
-                    let mut buf = vec![0u8; len as usize];
+                    let mut flag = [0u8; 1];
+                    r.read_exact(&mut flag)?;
+                    let mut buf = vec![0u8; flag[0] as usize];
                     r.read_exact(&mut buf)?;
-                    *buf.last_mut().unwrap() |= high5 << 3;
-                    Ok(buf.into_iter().enumerate().map(|(i, b)| (b as $t) << (8 * i)).fold(0, |acc, x| acc | x))
+                    let mut n: $t = 0;
+                    for (i, &b) in buf.iter().enumerate() {
+                        n |= (b as $t) << (8 * i);
+                    }
+                    Ok(n)
                 }
             }
         )*

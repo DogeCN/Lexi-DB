@@ -49,11 +49,9 @@ impl<T: Serialize> DBCreator<T> {
             let mut encoder = EncoderBuilder::new()
                 .level(4)
                 .build(File::create(&self.path)?)?;
-            let mut reader = File::open(&keys)?;
             encoder.write_all(&count.serialize())?;
-            copy(&mut reader, &mut encoder)?;
-            let mut reader = File::open(&values)?;
-            copy(&mut reader, &mut encoder)?;
+            copy(&mut File::open(&keys)?, &mut encoder)?;
+            copy(&mut File::open(&values)?, &mut encoder)?;
             encoder.flush()?;
         }
         remove_file(&keys)?;
