@@ -1,5 +1,4 @@
-use serialization::{Deserialize, Serialize};
-use std::vec;
+use serialization::*;
 
 #[derive(Default)]
 pub struct Entry {
@@ -18,8 +17,8 @@ impl Serialize for Entry {
 }
 
 impl Deserialize for Entry {
-    fn deserialize(data: &[u8]) -> Self {
-        match Vec::<String>::deserialize(data).as_slice() {
+    fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
+        Ok(match Vec::<String>::deserialize(r)?.as_slice() {
             [first, second, third, rest @ ..] => Entry {
                 phonetic: first.clone(),
                 definition: second.clone(),
@@ -27,6 +26,6 @@ impl Deserialize for Entry {
                 exchanges: rest.to_vec(),
             },
             _ => Entry::default(),
-        }
+        })
     }
 }

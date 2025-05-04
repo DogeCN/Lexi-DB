@@ -1,61 +1,89 @@
+pub use std::io::{Read, Result};
+
 pub trait Serialize {
     fn serialize(&self) -> Vec<u8>;
 }
 
 pub trait Deserialize: Sized {
-    fn deserialize(data: &[u8]) -> Self;
+    fn deserialize<R: Read>(r: &mut R) -> Result<Self>;
 }
 
 impl Serialize for String {
     fn serialize(&self) -> Vec<u8> {
-        self.as_bytes().to_vec()
+        let mut buf = self.len().serialize();
+        buf.extend(self.as_bytes());
+        buf
     }
 }
 
 impl Serialize for &String {
     fn serialize(&self) -> Vec<u8> {
-        self.as_bytes().to_vec()
+        self.to_owned().serialize()
     }
 }
 
 impl Deserialize for String {
-    fn deserialize(data: &[u8]) -> Self {
-        String::from_utf8_lossy(data).into_owned()
+    fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
+        let mut buf = vec![0u8; usize::deserialize(r)?];
+        r.read_exact(&mut buf)?;
+        Ok(String::from_utf8_lossy(&buf).into_owned())
     }
 }
 
-macro_rules! impl_serialize_for_int {
+macro_rules! impl_uint {
     ($($t:ty),*) => {
         $(
+
             impl Serialize for $t {
                 fn serialize(&self) -> Vec<u8> {
-                    self.to_le_bytes().to_vec()
+                    let mut n = self.clone();
+                    let mut buf = Vec::new();
+                    buf.push(0);
+                    while n > 0 {
+                        buf.push((n & 0xFF) as u8);
+                        n >>= 8;
+                    }
+                    buf[0] = (buf.len() - 1) as u8;
+                    buf
                 }
             }
+
             impl Deserialize for $t {
-                fn deserialize(data: &[u8]) -> Self {
-                    <$t>::from_le_bytes(data.try_into().unwrap())
+                fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
+                    let mut flag = [0u8; 1];
+                    r.read_exact(&mut flag)?;
+                    let mut buf = vec![0u8; flag[0] as usize];
+                    r.read_exact(&mut buf)?;
+                    let mut n: $t = 0;
+                    for (i, &b) in buf.iter().enumerate() {
+                        n |= (b as $t) << (8 * i);
+                    }
+                    Ok(n)
                 }
             }
         )*
     };
 }
 
-impl_serialize_for_int!(u64, u32, u16);
+impl_uint!(u64, u32, usize, u16);
 
 impl<T: Serialize> Serialize for Vec<T> {
     fn serialize(&self) -> Vec<u8> {
-        self.iter()
-            .map(|item| item.serialize())
-            .collect::<Vec<_>>()
-            .join(&[0u8][..])
+        let mut buf = self.len().serialize();
+        for item in self {
+            buf.extend(item.serialize());
+        }
+        buf
     }
 }
 
 impl<T: Deserialize> Deserialize for Vec<T> {
-    fn deserialize(data: &[u8]) -> Self {
-        data.split(|b| b.eq(&0))
-            .map(|data| T::deserialize(data))
-            .collect()
+    fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
+        let len = usize::deserialize(r)?;
+        let mut buf = Vec::with_capacity(len);
+        for _ in 0..len {
+            buf.push(T::deserialize(r)?);
+        }
+        Ok(buf)
     }
 }

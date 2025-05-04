@@ -8,7 +8,7 @@ fn test_db() {
     db.export().unwrap();
 
     let mut reader: DBReader<String> = DBReader::from("test.db", "test.values").unwrap();
-    dbg!(&reader.indexes);
+
     assert_eq!(reader.get("key1"), Some("value1".to_owned()));
     assert_eq!(reader.get("key2"), None);
 }

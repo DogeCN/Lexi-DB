@@ -3,13 +3,13 @@ use serialization::Deserialize;
 use std::{
     collections::HashMap,
     fs::File,
-    io::{Read, Result, Seek, SeekFrom, copy},
+    io::{Result, Seek, SeekFrom, copy},
     marker::PhantomData,
 };
 
 pub struct DBReader<T> {
     _marker: PhantomData<T>,
-    pub indexes: HashMap<String, (u32, u16)>,
+    pub indexes: HashMap<String, usize>,
     temp: String,
     value: Option<File>,
 }
@@ -17,22 +17,13 @@ pub struct DBReader<T> {
 impl<T: Deserialize> DBReader<T> {
     pub fn from(path: &str, temp: &str) -> Result<DBReader<T>> {
         let mut decoder = Decoder::new(File::open(&path)?)?;
-
-        let mut buf = [0u8; 8];
-        decoder.read_exact(&mut buf)?;
-        let mut buf = vec![0u8; u64::deserialize(&buf) as usize];
-        decoder.read_exact(&mut buf)?;
-
         let mut indexes = HashMap::new();
-        let mut slice = &buf[..];
-        while !slice.is_empty() {
-            let (key, rest) = slice[1..].split_at(slice[0] as usize);
-            let (meta, rest) = rest.split_at(6);
+
+        for _ in 0..usize::deserialize(&mut decoder)? {
             indexes.insert(
-                String::deserialize(key),
-                (u32::deserialize(&meta[..4]), u16::deserialize(&meta[4..])),
+                String::deserialize(&mut decoder)?,
+                usize::deserialize(&mut decoder)?,
             );
-            slice = rest;
         }
 
         copy(&mut decoder, &mut File::create(temp)?)?;
@@ -47,7 +38,7 @@ impl<T: Deserialize> DBReader<T> {
 
     pub fn get(&mut self, key: &str) -> Option<T> {
         match self.indexes.get(key) {
-            Some(&(offset, lenth)) => self.read(offset as u64, lenth as usize).ok(),
+            Some(&offset) => self.read(offset as u64).ok(),
             _ => None,
         }
     }
@@ -64,12 +55,10 @@ impl<T: Deserialize> DBReader<T> {
         self.indexes.contains_key(key)
     }
 
-    pub fn read(&mut self, offset: u64, lenth: usize) -> Result<T> {
+    pub fn read(&mut self, offset: u64) -> Result<T> {
         let mut file = self.value.as_ref().unwrap();
         file.seek(SeekFrom::Start(offset))?;
-        let mut value = vec![0u8; lenth];
-        file.read_exact(&mut value)?;
-        Ok(T::deserialize(&value))
+        Ok(T::deserialize(&mut file)?)
     }
 }
 
