@@ -1,5 +1,6 @@
 #![cfg(test)]
 use db::{DBCreator, DBReader};
+use serialization::Serialize;
 
 #[test]
 fn test_db() {
@@ -11,4 +12,9 @@ fn test_db() {
 
     assert_eq!(reader.get("key1"), Some("value1".to_owned()));
     assert_eq!(reader.get("key2"), None);
+}
+
+#[test]
+fn test_serialize() {
+    dbg!(6u16.serialize());
 }
