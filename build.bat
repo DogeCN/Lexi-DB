@@ -4,4 +4,3 @@ set pyd2=scripts\db\creator.pyd
 cargo build --release
 copy >nul /y target\release\reader.dll %pyd1%
 copy >nul /y target\release\creator.dll %pyd2%
-python scripts\tests.py
