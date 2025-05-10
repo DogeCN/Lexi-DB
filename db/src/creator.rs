@@ -51,7 +51,8 @@ impl<T: Serialize> DBCreator<T> {
         }
         {
             let mut encoder = EncoderBuilder::new()
-                .level(4)
+                .level(16)
+                .favor_dec_speed(true)
                 .build(File::create(&self.path)?)?;
             encoder.write_all(&self.name.serialize())?;
             encoder.write_all(&self.name_zh.serialize())?;
