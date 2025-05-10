@@ -10,16 +10,21 @@ pub trait Deserialize: Sized {
 
 impl Serialize for String {
     fn serialize(&self) -> Vec<u8> {
-        let mut buf = self.len().serialize();
-        buf.extend(self.as_bytes());
-        buf
+        self.as_str().serialize()
     }
 }
 
 impl Serialize for &String {
-    #[inline]
     fn serialize(&self) -> Vec<u8> {
-        self.to_owned().serialize()
+        self.as_str().serialize()
+    }
+}
+
+impl Serialize for &str {
+    fn serialize(&self) -> Vec<u8> {
+        let mut buf = self.len().serialize();
+        buf.extend(self.as_bytes());
+        buf
     }
 }
 

@@ -80,6 +80,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4c7245a08504955605670dbf141fceab975f15ca21570696aebe9d2e71576bd"
 
 [[package]]
+name = "interface"
+version = "0.1.0"
+dependencies = [
+ "pyo3",
+ "serialization",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.172"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -261,7 +269,7 @@ dependencies = [
 
 [[package]]
 name = "serialization"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "shlex"

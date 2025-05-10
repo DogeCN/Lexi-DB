@@ -1,0 +1,15 @@
+[package]
+name = "interface"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.serialization]
+path = "../serialization"
+
+[dependencies.pyo3]
+version = "0.24"
+features = ["extension-module"]
+
+[lib]
+name = "interface"
+crate-type = ["cdylib"]
