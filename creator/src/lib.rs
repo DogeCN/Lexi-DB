@@ -10,9 +10,9 @@ struct PyDBCreator {
 #[pymethods]
 impl PyDBCreator {
     #[new]
-    fn new(path: &str) -> Self {
+    fn new(path: &str, name: &str, name_zh: &str) -> Self {
         PyDBCreator {
-            db: DBCreator::new(path),
+            db: DBCreator::new(path, name, name_zh),
         }
     }
 

@@ -10,13 +10,17 @@ use std::{
 pub struct DBCreator<T> {
     path: PathBuf,
     data: HashMap<String, T>,
+    name: String,
+    name_zh: String,
 }
 
 impl<T: Serialize> DBCreator<T> {
-    pub fn new(path: &str) -> DBCreator<T> {
+    pub fn new(path: &str, name: &str, name_zh: &str) -> DBCreator<T> {
         DBCreator {
             path: PathBuf::from(path),
             data: HashMap::new(),
+            name: name.to_owned(),
+            name_zh: name_zh.to_owned(),
         }
     }
 
@@ -49,6 +53,8 @@ impl<T: Serialize> DBCreator<T> {
             let mut encoder = EncoderBuilder::new()
                 .level(4)
                 .build(File::create(&self.path)?)?;
+            encoder.write_all(&self.name.serialize())?;
+            encoder.write_all(&self.name_zh.serialize())?;
             encoder.write_all(&count.serialize())?;
             copy(&mut File::open(&keys)?, &mut encoder)?;
             copy(&mut File::open(&values)?, &mut encoder)?;

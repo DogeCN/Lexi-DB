@@ -9,6 +9,8 @@ use std::{
 
 pub struct DBReader<T> {
     _marker: PhantomData<T>,
+    pub name: String,
+    pub name_zh: String,
     pub indexes: HashMap<String, usize>,
     temp: String,
     value: Option<File>,
@@ -18,6 +20,9 @@ impl<T: Deserialize> DBReader<T> {
     pub fn from(path: &str, temp: &str) -> Result<DBReader<T>> {
         let mut decoder = Decoder::new(File::open(&path)?)?;
         let mut indexes = HashMap::new();
+
+        let name = String::deserialize(&mut decoder)?;
+        let name_zh = String::deserialize(&mut decoder)?;
 
         for _ in 0..usize::deserialize(&mut decoder)? {
             indexes.insert(
@@ -30,6 +35,8 @@ impl<T: Deserialize> DBReader<T> {
 
         Ok(DBReader::<T> {
             _marker: PhantomData,
+            name,
+            name_zh,
             indexes,
             temp: temp.to_owned(),
             value: Some(File::open(temp)?),

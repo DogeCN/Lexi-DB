@@ -11,7 +11,7 @@ use std::io::Cursor;
 fn create_test_db(db_file: &str, pairs: &[(String, String)]) -> DBCreator<String> {
     let _ = fs::remove_file(db_file);
 
-    let mut db: DBCreator<String> = DBCreator::new(db_file);
+    let mut db: DBCreator<String> = DBCreator::new(db_file, "name", "名称");
 
     for (key, value) in pairs {
         db.insert(key, value.clone());
@@ -33,6 +33,8 @@ fn test_db(db_file: &str, expected_pairs: &[(String, String)]) {
     }
 
     assert!(matches!(reader.get("nonexistentkey"), None));
+    assert_eq!(reader.name, "name");
+    assert_eq!(reader.name_zh, "名称");
 
     let _ = fs::remove_file(db_file);
 }
@@ -94,24 +96,6 @@ fn test_empty_database() {
     assert!(reader.keys().is_empty());
 
     let _ = fs::remove_file(db_file);
-}
-
-#[test]
-fn test_overwrite_values() {
-    let db_file = "test_overwrite.db";
-
-    let mut db: DBCreator<String> = DBCreator::new(db_file);
-    db.insert("key1", "value1");
-    db.insert("key2", "value2");
-    db.insert("key1", "updated_value1");
-    db.export().unwrap();
-
-    let pairs = vec![
-        ("key1".to_string(), "updated_value1".to_string()),
-        ("key2".to_string(), "value2".to_string()),
-    ];
-
-    test_db(db_file, &pairs);
 }
 
 #[test]

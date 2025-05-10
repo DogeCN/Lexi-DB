@@ -4,16 +4,10 @@ class PyEntry:
     translation: str
     exchanges: list[str]
 
-    def __init__(
-        self,
-        phonetic: str,
-        definition: str,
-        translation: str,
-        exchanges: list[str],
-    ): ...
-
 class PyDBReader:
-    def __init__(self, path: str): ...
+    name: str
+    name_zh: str
+    def __init__(self, path: str, temp: str): ...
     def __getitem__(self, key: str) -> PyEntry | None: ...
     def __len__(self) -> int: ...
     def __contains__(self, key: str) -> bool: ...

@@ -16,6 +16,16 @@ impl PyDBReader {
         })
     }
 
+    #[getter]
+    fn name(&self) -> &str {
+        self.db.name.as_str()
+    }
+
+    #[getter]
+    fn name_zh(&self) -> &str {
+        self.db.name_zh.as_str()
+    }
+
     fn __getitem__(&mut self, key: &str) -> Option<PyEntry> {
         self.db.get(key).map(|e| PyEntry::from_entry(&e))
     }

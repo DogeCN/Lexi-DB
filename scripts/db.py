@@ -4,7 +4,7 @@ from os import remove
 
 value = PyEntry("phonetic", "definition", "translation", ["exchange1", "exchanges2"])
 
-creator = PyDBCreator("test.db")
+creator = PyDBCreator("test.db", "Name", "名称")
 for i in range(2):
     creator.insert(f"test{i}", value)
 creator.export()
@@ -15,6 +15,8 @@ assert reader["test1"].phonetic == "phonetic"
 assert reader["test1"].definition == "definition"
 assert reader["test1"].translation == "translation"
 assert set(reader.keys()) == {"test0", "test1"}
+assert reader.name == "Name"
+assert reader.name_zh == "名称"
 
 remove("test.db")
 
