@@ -3,6 +3,9 @@ name = "interface"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+lz4 = "1"
+
 [dependencies.serialization]
 path = "../serialization"
 

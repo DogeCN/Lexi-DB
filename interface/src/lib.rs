@@ -1,100 +1,128 @@
+use lz4::{Decoder, EncoderBuilder};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyBytes};
 use serialization::{Deserialize, Serialize};
-use std::io::Cursor;
+use std::io::{Cursor, Read, Write};
 
-#[derive(Debug)]
-enum LexiError {
+enum Error {
     DeserializationError(String),
     SerializationError(String),
 }
 
-impl From<LexiError> for PyErr {
-    fn from(err: LexiError) -> PyErr {
+impl From<Error> for PyErr {
+    fn from(err: Error) -> PyErr {
         match err {
-            LexiError::DeserializationError(msg) => {
+            Error::DeserializationError(msg) => {
                 PyValueError::new_err(format!("Deserialization Error: {}", msg))
             }
-            LexiError::SerializationError(msg) => {
+            Error::SerializationError(msg) => {
                 PyValueError::new_err(format!("Serialization Error: {}", msg))
             }
         }
     }
 }
 
-impl From<std::io::Error> for LexiError {
+impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
-        LexiError::DeserializationError(err.to_string())
+        Error::DeserializationError(err.to_string())
     }
 }
 
 #[pymodule]
 fn interface(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(serialize_string, m)?)?;
-    m.add_function(wrap_pyfunction!(serialize_uint, m)?)?;
-    m.add_function(wrap_pyfunction!(serialize_string_list, m)?)?;
-    m.add_function(wrap_pyfunction!(serialize_uint_list, m)?)?;
-
-    m.add_function(wrap_pyfunction!(deserialize_string, m)?)?;
-    m.add_function(wrap_pyfunction!(deserialize_uint, m)?)?;
-    m.add_function(wrap_pyfunction!(deserialize_string_list, m)?)?;
-    m.add_function(wrap_pyfunction!(deserialize_uint_list, m)?)?;
+    m.add_class::<Serializer>()?;
+    m.add_class::<Deserializer>()?;
+    m.add_class::<Compressor>()?;
 
     Ok(())
 }
 
-fn serialize<T: Serialize>(py: Python<'_>, value: PyResult<T>) -> Result<PyObject, LexiError> {
+fn serialize<T: Serialize>(py: Python<'_>, value: PyResult<T>) -> PyResult<PyObject> {
     Ok(PyBytes::new(
         py,
         &value
-            .map_err(|e: PyErr| LexiError::SerializationError(e.to_string()))?
+            .map_err(|e: PyErr| Error::SerializationError(e.to_string()))?
             .serialize(),
     )
     .into())
 }
 
-#[pyfunction]
-fn serialize_string(py: Python<'_>, value: &str) -> Result<PyObject, LexiError> {
-    serialize(py, Ok(value.to_string()))
+fn deserialize<T: Deserialize>(data: &[u8]) -> PyResult<T> {
+    Ok(T::deserialize(&mut Cursor::new(data))
+        .map_err(|e| Error::DeserializationError(e.to_string()))?)
 }
 
-#[pyfunction]
-fn serialize_uint(py: Python<'_>, value: u64) -> Result<PyObject, LexiError> {
-    serialize(py, Ok(value))
+#[pyclass]
+struct Serializer;
+
+#[pymethods]
+impl Serializer {
+    #[staticmethod]
+    fn from_string(py: Python<'_>, value: &str) -> PyResult<PyObject> {
+        serialize(py, Ok(value.to_string()))
+    }
+
+    #[staticmethod]
+    fn from_uint(py: Python<'_>, value: u64) -> PyResult<PyObject> {
+        serialize(py, Ok(value))
+    }
+
+    #[staticmethod]
+    fn from_string_list(py: Python<'_>, values: PyObject) -> PyResult<PyObject> {
+        serialize(py, values.extract::<Vec<String>>(py))
+    }
+
+    #[staticmethod]
+    fn from_uint_list(py: Python<'_>, values: PyObject) -> PyResult<PyObject> {
+        serialize(py, values.extract::<Vec<u64>>(py))
+    }
 }
 
-#[pyfunction]
-fn serialize_string_list(py: Python<'_>, values: PyObject) -> Result<PyObject, LexiError> {
-    serialize(py, values.extract::<Vec<String>>(py))
+#[pyclass]
+struct Deserializer;
+
+#[pymethods]
+impl Deserializer {
+    #[staticmethod]
+    fn to_string(data: &[u8]) -> PyResult<String> {
+        deserialize(data)
+    }
+
+    #[staticmethod]
+    fn to_uint(data: &[u8]) -> PyResult<u64> {
+        deserialize(data)
+    }
+
+    #[staticmethod]
+    fn to_string_list(py: Python<'_>, data: &[u8]) -> PyResult<PyObject> {
+        #[allow(deprecated)]
+        deserialize::<Vec<String>>(data).map(|strings| strings.into_py(py))
+    }
+
+    #[staticmethod]
+    fn to_uint_list(py: Python<'_>, data: &[u8]) -> PyResult<PyObject> {
+        #[allow(deprecated)]
+        deserialize::<Vec<u64>>(data).map(|uints| uints.into_py(py))
+    }
 }
 
-#[pyfunction]
-fn serialize_uint_list(py: Python<'_>, values: PyObject) -> Result<PyObject, LexiError> {
-    serialize(py, values.extract::<Vec<u64>>(py))
-}
+#[pyclass]
+struct Compressor;
 
-fn deserialize<T: Deserialize>(data: &[u8]) -> Result<T, LexiError> {
-    T::deserialize(&mut Cursor::new(data))
-        .map_err(|e| LexiError::DeserializationError(e.to_string()))
-}
+#[pymethods]
+impl Compressor {
+    #[staticmethod]
+    fn compress(py: Python<'_>, data: &[u8]) -> PyResult<PyObject> {
+        let mut encoder = EncoderBuilder::new().level(4).build(Vec::new())?;
+        encoder.write_all(data)?;
+        let (data, _) = encoder.finish();
+        Ok(PyBytes::new(py, &data).into())
+    }
 
-#[pyfunction]
-fn deserialize_string(data: &[u8]) -> Result<String, LexiError> {
-    deserialize(data)
-}
-
-#[pyfunction]
-fn deserialize_uint(data: &[u8]) -> Result<u64, LexiError> {
-    deserialize(data)
-}
-
-#[pyfunction]
-fn deserialize_string_list(py: Python<'_>, data: &[u8]) -> Result<PyObject, LexiError> {
-    #[allow(deprecated)]
-    deserialize::<Vec<String>>(data).map(|strings| strings.into_py(py))
-}
-
-#[pyfunction]
-fn deserialize_uint_list(py: Python<'_>, data: &[u8]) -> Result<PyObject, LexiError> {
-    #[allow(deprecated)]
-    deserialize::<Vec<u64>>(data).map(|uints| uints.into_py(py))
+    #[staticmethod]
+    fn decompress(py: Python<'_>, data: &[u8]) -> PyResult<PyObject> {
+        let mut decoder = Decoder::new(Cursor::new(data))?;
+        let mut data = Vec::new();
+        decoder.read_to_end(&mut data)?;
+        Ok(PyBytes::new(py, &data).into())
+    }
 }
