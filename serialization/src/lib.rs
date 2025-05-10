@@ -39,13 +39,17 @@ macro_rules! impl_uint {
                 fn serialize(&self) -> Vec<u8> {
                     let mut n = *self;
                     let mut buf = vec![0];
-                    let low = n as u8 & 0xF;
-                    n >>= 4;
-                    while n > 0 {
-                        buf.push((n & 0xFF) as u8);
-                        n >>= 8;
-                    }
-                    buf[0] = (buf.len() - 1) as u8 | low << 4;
+                    buf[0] = if n < 0x80 {
+                        (n as u8 & 0x7F) << 1
+                    } else {
+                        let low = n as u8 & 0xF;
+                        n >>= 4;
+                        while n > 0 {
+                            buf.push((n & 0xFF) as u8);
+                            n >>= 8;
+                        }
+                        (buf.len() as u8 - 2) << 1 | 1 | low << 4
+                    };
                     buf
                 }
             }
@@ -54,13 +58,17 @@ macro_rules! impl_uint {
                 fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
                     let mut buf = [0];
                     r.read_exact(&mut buf)?;
-                    let mut n = buf[0] as Self >> 4;
-                    let mut buf = vec![0; buf[0] as usize & 0xF];
-                    r.read_exact(&mut buf)?;
-                    for (i, &b) in buf.iter().enumerate() {
-                        n |= (b as Self) << (4 + 8 * i);
-                    }
-                    Ok(n)
+                    Ok(if (buf[0] & 1) == 0 {
+                        buf[0] as Self >> 1
+                    } else {
+                        let mut n = buf[0] as Self >> 4;
+                        let mut buf = vec![0; (buf[0] as usize >> 1 & 7) + 1];
+                        r.read_exact(&mut buf)?;
+                        for (i, &b) in buf.iter().enumerate() {
+                            n |= (b as Self) << (4 + 8 * i);
+                        }
+                        n
+                    })
                 }
             }
 
