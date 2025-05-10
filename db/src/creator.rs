@@ -1,4 +1,3 @@
-use lz4::EncoderBuilder;
 use serialization::Serialize;
 use std::{
     collections::HashMap,
@@ -6,6 +5,7 @@ use std::{
     io::{Result, Write, copy},
     path::PathBuf,
 };
+use xz2::write::XzEncoder;
 
 pub struct DBCreator<T> {
     path: PathBuf,
@@ -50,16 +50,13 @@ impl<T: Serialize> DBCreator<T> {
             }
         }
         {
-            let mut encoder = EncoderBuilder::new()
-                .level(16)
-                .favor_dec_speed(true)
-                .build(File::create(&self.path)?)?;
+            let mut encoder = XzEncoder::new(File::create(&self.path)?, 9);
             encoder.write_all(&self.name.serialize())?;
             encoder.write_all(&self.name_zh.serialize())?;
             encoder.write_all(&count.serialize())?;
             copy(&mut File::open(&keys)?, &mut encoder)?;
             copy(&mut File::open(&values)?, &mut encoder)?;
-            encoder.flush()?;
+            encoder.finish()?;
         }
         remove_file(&keys)?;
         remove_file(&values)?;

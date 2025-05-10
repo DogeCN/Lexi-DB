@@ -1,4 +1,3 @@
-use lz4::Decoder;
 use serialization::Deserialize;
 use std::{
     collections::HashMap,
@@ -6,6 +5,7 @@ use std::{
     io::{Result, Seek, SeekFrom, copy},
     marker::PhantomData,
 };
+use xz2::read::XzDecoder;
 
 pub struct DBReader<T> {
     _marker: PhantomData<T>,
@@ -18,7 +18,7 @@ pub struct DBReader<T> {
 
 impl<T: Deserialize> DBReader<T> {
     pub fn from(path: &str, temp: &str) -> Result<DBReader<T>> {
-        let mut decoder = Decoder::new(File::open(&path)?)?;
+        let mut decoder = XzDecoder::new(File::open(&path)?);
         let mut indexes = HashMap::new();
 
         let name = String::deserialize(&mut decoder)?;
