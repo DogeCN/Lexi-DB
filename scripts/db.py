@@ -10,6 +10,7 @@ for i in range(2):
 creator.export()
 
 reader = PyDBReader("test.db", "test.values")
+reader.load()
 assert reader["test1"].exchanges == ["exchange1", "exchanges2"]
 assert reader["test1"].phonetic == "phonetic"
 assert reader["test1"].definition == "definition"

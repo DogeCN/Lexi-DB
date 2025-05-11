@@ -16,6 +16,11 @@ impl PyDBReader {
         })
     }
 
+    fn load(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.allow_threads(|| self.db.load())?;
+        Ok(())
+    }
+
     #[getter]
     fn name(&self) -> &str {
         self.db.name.as_str()

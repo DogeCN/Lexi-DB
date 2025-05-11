@@ -24,6 +24,7 @@ fn create_test_db(db_file: &str, pairs: &[(String, String)]) -> DBCreator<String
 fn test_db(db_file: &str, expected_pairs: &[(String, String)]) {
     let mut reader: DBReader<String> =
         DBReader::from(db_file, format!("{}.values", db_file).as_str()).unwrap();
+    reader.load().unwrap();
 
     assert_eq!(reader.len(), expected_pairs.len());
 
@@ -90,8 +91,10 @@ fn test_empty_database() {
 
     create_test_db(db_file, &[]);
 
-    let reader: DBReader<String> =
+    let mut reader: DBReader<String> =
         DBReader::from(db_file, format!("{}.values", db_file).as_str()).unwrap();
+    reader.load().unwrap();
+
     assert_eq!(reader.len(), 0);
     assert!(reader.keys().is_empty());
 
@@ -145,8 +148,9 @@ fn test_keys_methods() {
 
     create_test_db(db_file, &pairs);
 
-    let reader: DBReader<String> =
+    let mut reader: DBReader<String> =
         DBReader::from(db_file, format!("{}.values", db_file).as_str()).unwrap();
+    reader.load().unwrap();
     let keys = reader.keys();
 
     assert_eq!(keys.len(), pairs.len());

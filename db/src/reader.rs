@@ -12,6 +12,7 @@ pub struct DBReader<T> {
     pub name: String,
     pub name_zh: String,
     pub indexes: HashMap<String, usize>,
+    decoder: Option<XzDecoder<File>>,
     temp: String,
     value: Option<File>,
 }
@@ -19,28 +20,31 @@ pub struct DBReader<T> {
 impl<T: Deserialize> DBReader<T> {
     pub fn from(path: &str, temp: &str) -> Result<DBReader<T>> {
         let mut decoder = XzDecoder::new(File::open(&path)?);
-        let mut indexes = HashMap::new();
-
         let name = String::deserialize(&mut decoder)?;
         let name_zh = String::deserialize(&mut decoder)?;
-
-        for _ in 0..usize::deserialize(&mut decoder)? {
-            indexes.insert(
-                String::deserialize(&mut decoder)?,
-                usize::deserialize(&mut decoder)?,
-            );
-        }
-
-        copy(&mut decoder, &mut File::create(temp)?)?;
-
         Ok(DBReader::<T> {
             _marker: PhantomData,
             name,
             name_zh,
-            indexes,
+            indexes: HashMap::new(),
+            decoder: Some(decoder),
             temp: temp.to_owned(),
-            value: Some(File::open(temp)?),
+            value: None,
         })
+    }
+
+    pub fn load(&mut self) -> Result<()> {
+        let mut decoder = self.decoder.take().unwrap();
+        for _ in 0..usize::deserialize(&mut decoder)? {
+            self.indexes.insert(
+                String::deserialize(&mut decoder)?,
+                usize::deserialize(&mut decoder)?,
+            );
+        }
+        copy(&mut decoder, &mut File::create(&self.temp)?)?;
+        self.value = Some(File::open(&self.temp)?);
+        self.decoder = Some(decoder);
+        Ok(())
     }
 
     pub fn get(&mut self, key: &str) -> Option<T> {
