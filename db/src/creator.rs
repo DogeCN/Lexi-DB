@@ -1,65 +1,69 @@
 use serialization::Serialize;
 use std::{
-    collections::HashMap,
     fs::{File, remove_file},
     io::{Result, Write, copy},
+    marker::PhantomData,
     path::PathBuf,
 };
 use xz2::write::XzEncoder;
 
 pub struct DBCreator<T> {
+    _marker: PhantomData<T>,
     path: PathBuf,
-    data: HashMap<String, T>,
+    total: usize,
+    count: usize,
+    keys: PathBuf,
+    values: PathBuf,
+    file_key: Option<File>,
+    file_values: Option<File>,
     name: String,
     name_zh: String,
 }
 
 impl<T: Serialize> DBCreator<T> {
-    pub fn new(path: &str, name: &str, name_zh: &str) -> DBCreator<T> {
-        DBCreator {
-            path: PathBuf::from(path),
-            data: HashMap::new(),
+    pub fn new(path: &str, name: &str, name_zh: &str) -> Result<DBCreator<T>> {
+        let path = PathBuf::from(path);
+        let keys = path.with_extension("keys");
+        let values = path.with_extension("values");
+        Ok(DBCreator {
+            _marker: PhantomData,
+            path,
+            total: 0,
+            count: 0,
+            file_key: Some(File::create(&keys)?),
+            file_values: Some(File::create(&values)?),
+            keys,
+            values,
             name: name.to_owned(),
             name_zh: name_zh.to_owned(),
-        }
+        })
     }
 
-    pub fn insert(&mut self, key: &str, value: impl Into<T>) {
-        self.data.insert(key.to_owned(), value.into());
+    pub fn insert(&mut self, key: &str, value: impl Into<T>) -> Result<()> {
+        let mut buf = Vec::new();
+        buf.extend(key.serialize());
+        buf.extend(self.total.serialize());
+        self.file_key.as_ref().unwrap().write_all(&buf)?;
+
+        let buf = value.into().serialize();
+        self.total += buf.len();
+        self.file_values.as_ref().unwrap().write_all(&buf)?;
+        self.count += 1;
+        Ok(())
     }
 
-    pub fn export(&self) -> Result<()> {
-        let keys = self.path.with_extension("keys");
-        let values = self.path.with_extension("values");
-        let mut count: usize = 0;
-        {
-            let mut file_key = File::create(&keys)?;
-            let mut file_values = File::create(&values)?;
-            let mut total: usize = 0;
-
-            for (key, value) in &self.data {
-                let mut buf: Vec<u8> = Vec::new();
-                buf.extend(key.serialize());
-                buf.extend(total.serialize());
-                file_key.write_all(&buf)?;
-
-                let buf: Vec<u8> = value.serialize();
-                total += buf.len();
-                file_values.write_all(&buf)?;
-                count += 1;
-            }
-        }
-        {
-            let mut encoder = XzEncoder::new(File::create(&self.path)?, 9);
-            encoder.write_all(&self.name.serialize())?;
-            encoder.write_all(&self.name_zh.serialize())?;
-            encoder.write_all(&count.serialize())?;
-            copy(&mut File::open(&keys)?, &mut encoder)?;
-            copy(&mut File::open(&values)?, &mut encoder)?;
-            encoder.finish()?;
-        }
-        remove_file(&keys)?;
-        remove_file(&values)?;
+    pub fn export(&mut self) -> Result<()> {
+        let mut encoder = XzEncoder::new(File::create(&self.path)?, 6);
+        encoder.write_all(&self.name.serialize())?;
+        encoder.write_all(&self.name_zh.serialize())?;
+        encoder.write_all(&self.count.serialize())?;
+        self.file_key.take();
+        self.file_values.take();
+        copy(&mut File::open(&self.keys)?, &mut encoder)?;
+        copy(&mut File::open(&self.values)?, &mut encoder)?;
+        encoder.finish()?;
+        remove_file(&self.keys)?;
+        remove_file(&self.values)?;
         Ok(())
     }
 }

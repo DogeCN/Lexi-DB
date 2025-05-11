@@ -11,10 +11,10 @@ use std::io::Cursor;
 fn create_test_db(db_file: &str, pairs: &[(String, String)]) -> DBCreator<String> {
     let _ = fs::remove_file(db_file);
 
-    let mut db: DBCreator<String> = DBCreator::new(db_file, "name", "名称");
+    let mut db: DBCreator<String> = DBCreator::new(db_file, "name", "名称").unwrap();
 
     for (key, value) in pairs {
-        db.insert(key, value.clone());
+        db.insert(key, value.clone()).unwrap();
     }
 
     db.export().unwrap();
