@@ -10,5 +10,5 @@ path = "../db"
 path = "../serialization"
 
 [dependencies.pyo3]
-version = "0.24"
+version = "0.*"
 features = ["extension-module"]

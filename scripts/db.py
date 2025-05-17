@@ -15,7 +15,7 @@ assert reader["test1"].exchanges == ["exchange1", "exchanges2"]
 assert reader["test1"].phonetic == "phonetic"
 assert reader["test1"].definition == "definition"
 assert reader["test1"].translation == "translation"
-assert set(reader.keys()) == {"test0", "test1"}
+assert set(iter(reader)) == {"test0", "test1"}
 assert reader.name == "Name"
 assert reader.name_zh == "名称"
 

@@ -8,7 +8,7 @@ name = "creator"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
-version = "0.24"
+version = "0.*"
 features = ["extension-module"]
 
 [dependencies.db]

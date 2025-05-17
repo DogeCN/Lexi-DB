@@ -4,6 +4,7 @@ use std::{
     fs::File,
     io::{Result, Seek, SeekFrom, copy},
     marker::PhantomData,
+    sync::Arc,
 };
 use xz2::read::XzDecoder;
 
@@ -11,7 +12,7 @@ pub struct DBReader<T> {
     _marker: PhantomData<T>,
     pub name: String,
     pub name_zh: String,
-    pub indexes: HashMap<String, usize>,
+    pub indexes: HashMap<Arc<String>, usize>,
     decoder: Option<XzDecoder<File>>,
     temp: String,
     value: Option<File>,
@@ -37,7 +38,7 @@ impl<T: Deserialize> DBReader<T> {
         let mut decoder = self.decoder.take().unwrap();
         for _ in 0..usize::deserialize(&mut decoder)? {
             self.indexes.insert(
-                String::deserialize(&mut decoder)?,
+                Arc::new(String::deserialize(&mut decoder)?),
                 usize::deserialize(&mut decoder)?,
             );
         }
@@ -48,7 +49,7 @@ impl<T: Deserialize> DBReader<T> {
     }
 
     pub fn get(&mut self, key: &str) -> Option<T> {
-        match self.indexes.get(key) {
+        match self.indexes.get(&key.to_owned()) {
             Some(&offset) => self.read(offset as u64).ok(),
             _ => None,
         }
@@ -58,12 +59,12 @@ impl<T: Deserialize> DBReader<T> {
         self.indexes.len()
     }
 
-    pub fn keys(&self) -> Vec<&String> {
-        self.indexes.keys().collect()
+    pub fn keys(&self) -> Vec<Arc<String>> {
+        self.indexes.keys().cloned().collect()
     }
 
     pub fn contains(&self, key: &str) -> bool {
-        self.indexes.contains_key(key)
+        self.indexes.contains_key(&key.to_owned())
     }
 
     pub fn read(&mut self, offset: u64) -> Result<T> {

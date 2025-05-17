@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use db::DBReader;
 use entry::{Entry, PyEntry};
 use pyo3::prelude::*;
@@ -43,8 +45,32 @@ impl PyDBReader {
         self.db.contains(key)
     }
 
-    fn keys(&self) -> Vec<&String> {
-        self.db.keys()
+    fn __iter__(slf: PyRef<'_, Self>) -> KeyIter {
+        KeyIter {
+            keys: slf.db.keys(),
+            index: 0,
+        }
+    }
+}
+
+#[pyclass]
+struct KeyIter {
+    keys: Vec<Arc<String>>,
+    index: usize,
+}
+
+#[pymethods]
+impl KeyIter {
+    fn __iter__(slf: PyRefMut<'_, Self>) -> PyRefMut<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<String> {
+        (slf.index < slf.keys.len()).then(|| {
+            let k = slf.keys[slf.index].to_string();
+            slf.index += 1;
+            k
+        })
     }
 }
 
@@ -52,5 +78,6 @@ impl PyDBReader {
 fn reader(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<PyEntry>()?;
     m.add_class::<PyDBReader>()?;
+    m.add_class::<KeyIter>()?;
     Ok(())
 }

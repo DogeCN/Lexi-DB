@@ -155,9 +155,9 @@ fn test_keys_methods() {
 
     assert_eq!(keys.len(), pairs.len());
 
-    for (key, _) in &pairs {
-        assert!(keys.contains(&key));
-        assert!(reader.contains(key));
+    for (key, _) in pairs {
+        assert!(reader.contains(&key));
+        assert!(keys.contains(&std::sync::Arc::new(key)));
     }
 
     let _ = fs::remove_file(db_file);
