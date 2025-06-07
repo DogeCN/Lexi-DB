@@ -42,6 +42,7 @@ dependencies = [
 name = "db"
 version = "0.2.0"
 dependencies = [
+ "matcher",
  "serialization",
  "xz2",
 ]
@@ -95,6 +96,10 @@ dependencies = [
  "libc",
  "pkg-config",
 ]
+
+[[package]]
+name = "matcher"
+version = "0.1.0"
 
 [[package]]
 name = "memoffset"
@@ -253,6 +258,7 @@ version = "0.2.0"
 dependencies = [
  "db",
  "entry",
+ "matcher",
  "pyo3",
 ]
 

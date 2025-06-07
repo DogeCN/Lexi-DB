@@ -42,44 +42,38 @@ fn test_db(db_file: &str, expected_pairs: &[(String, String)]) {
 
 #[test]
 fn test_serialization() {
-    // Test String serialization/deserialization
-    let original_string = "Hello, world!".to_string();
-    let serialized = dbg!(original_string.serialize());
+    let original_string = "Hello, world!".to_owned();
+    let serialized = original_string.serialize();
     let mut cursor = Cursor::new(serialized);
     let deserialized = String::deserialize(&mut cursor).unwrap();
     assert_eq!(original_string, deserialized);
 
-    // Test usize serialization/deserialization
     let original_usize = 234567usize;
-    let serialized = dbg!(original_usize.serialize());
+    let serialized = original_usize.serialize();
     let mut cursor = Cursor::new(serialized);
     let deserialized = usize::deserialize(&mut cursor).unwrap();
     assert_eq!(original_usize, deserialized);
 
-    // Test u32 serialization/deserialization
     let original_u32 = 54321u32;
-    let serialized = dbg!(original_u32.serialize());
+    let serialized = original_u32.serialize();
     let mut cursor = Cursor::new(serialized);
     let deserialized = u32::deserialize(&mut cursor).unwrap();
     assert_eq!(original_u32, deserialized);
 
-    // Test Vec<String> serialization/deserialization
-    let original_vec = vec!["one".to_string(), "two".to_string(), "three".to_string()];
-    let serialized = dbg!(original_vec.serialize());
+    let original_vec = vec!["one".to_owned(), "two".to_owned(), "three".to_owned()];
+    let serialized = original_vec.serialize();
     let mut cursor = Cursor::new(serialized);
     let deserialized = Vec::<String>::deserialize(&mut cursor).unwrap();
     assert_eq!(original_vec, deserialized);
 
-    // Test large number serialization
     let large_number = u64::MAX;
-    let serialized = dbg!(large_number.serialize());
+    let serialized = large_number.serialize();
     let mut cursor = Cursor::new(serialized);
     let deserialized = u64::deserialize(&mut cursor).unwrap();
     assert_eq!(large_number, deserialized);
 
-    // Test empty string serialization
-    let empty_string = "".to_string();
-    let serialized = dbg!(empty_string.serialize());
+    let empty_string = "".to_owned();
+    let serialized = empty_string.serialize();
     let mut cursor = Cursor::new(serialized);
     let deserialized = String::deserialize(&mut cursor).unwrap();
     assert_eq!(empty_string, deserialized);
@@ -108,8 +102,8 @@ fn test_large_values() {
     let large_value = "x".repeat(100 * 1024);
 
     let pairs = vec![
-        ("small_key".to_string(), "small_value".to_string()),
-        ("large_key".to_string(), large_value),
+        ("small_key".to_owned(), "small_value".to_owned()),
+        ("large_key".to_owned(), large_value),
     ];
 
     create_test_db(db_file, &pairs);
@@ -161,4 +155,48 @@ fn test_keys_methods() {
     }
 
     let _ = fs::remove_file(db_file);
+}
+
+#[test]
+fn test_matches() {
+    let db_file = "test_matches.db";
+    let pairs = vec![
+        ("apple".to_owned(), "fruit".to_owned()),
+        ("banana".to_owned(), "fruit".to_owned()),
+        ("applause".to_owned(), "clap".to_owned()),
+        ("苹果".to_owned(), "水果".to_owned()),
+    ];
+    create_test_db(db_file, &pairs);
+    let mut reader: DBReader<String> =
+        DBReader::from(db_file, format!("{}.values", db_file).as_str()).unwrap();
+    reader.load().unwrap();
+
+    assert_eq!(reader.matches("appl").unwrap(), "fruit");
+    assert_eq!(reader.matches("banan").unwrap(), "fruit");
+
+    assert_eq!(reader.matches("苹").unwrap(), "水果");
+
+    println!("notfound -> {:?}", reader.matches("notfound").unwrap());
+    let _ = std::fs::remove_file(db_file);
+}
+
+#[test]
+fn test_filter_keys() {
+    let db_file = "test_filter.db";
+    let pairs = vec![
+        ("foo-bar-baz".to_owned(), "1".to_owned()),
+        ("foo-baz".to_owned(), "2".to_owned()),
+        ("bar-baz".to_owned(), "3".to_owned()),
+        ("baz".to_owned(), "4".to_owned()),
+    ];
+    create_test_db(db_file, &pairs);
+    let mut reader: DBReader<String> =
+        DBReader::from(db_file, format!("{}.values", db_file).as_str()).unwrap();
+    reader.load().unwrap();
+    let keys: Vec<String> = reader.filter_keys("foo-bar", &['-']);
+    assert!(keys.contains(&"foo-bar-baz".to_owned()));
+    assert!(!keys.contains(&"foo-baz".to_owned()));
+    assert!(!keys.contains(&"bar-baz".to_owned()));
+    assert!(!keys.contains(&"baz".to_owned()));
+    let _ = std::fs::remove_file(db_file);
 }

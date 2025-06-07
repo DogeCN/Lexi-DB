@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 xz2 = "0.1"
+matcher = { path = "../matcher" }
 
 [dependencies.serialization]
 path = "../serialization"

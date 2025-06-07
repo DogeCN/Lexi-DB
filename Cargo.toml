@@ -1,5 +1,5 @@
 [workspace]
-members = ["entry", "db", "creator", "reader", "serialization", "tests"]
+members = ["entry", "db", "creator", "reader", "serialization", "tests", "matcher"]
 resolver = "3"
 
 [profile.release]

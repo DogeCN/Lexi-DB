@@ -16,3 +16,6 @@ path = "../db"
 
 [dependencies.entry]
 path = "../entry"
+
+[dependencies.matcher]
+path = "../matcher"

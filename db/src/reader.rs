@@ -1,3 +1,4 @@
+use matcher::Matcher;
 use serialization::Deserialize;
 use std::{
     collections::HashMap,
@@ -16,6 +17,7 @@ pub struct DBReader<T> {
     decoder: Option<XzDecoder<File>>,
     temp: String,
     value: Option<File>,
+    matcher: Option<Matcher>,
 }
 
 impl<T: Deserialize> DBReader<T> {
@@ -31,6 +33,7 @@ impl<T: Deserialize> DBReader<T> {
             decoder: Some(decoder),
             temp: temp.to_owned(),
             value: None,
+            matcher: None,
         })
     }
 
@@ -44,6 +47,7 @@ impl<T: Deserialize> DBReader<T> {
         }
         copy(&mut decoder, &mut File::create(&self.temp)?)?;
         self.value = Some(File::open(&self.temp)?);
+        self.matcher = Some(Matcher::new(self.keys()));
         self.decoder = Some(decoder);
         Ok(())
     }
@@ -53,6 +57,31 @@ impl<T: Deserialize> DBReader<T> {
             Some(&offset) => self.read(offset as u64).ok(),
             _ => None,
         }
+    }
+
+    pub fn matches(&mut self, key: &str) -> Option<T> {
+        self.matcher
+            .as_ref()
+            .unwrap()
+            .find(key)
+            .map(|b| b.to_owned())
+            .and_then(|b| self.get(&b))
+    }
+
+    pub fn filter_keys(&self, text: &str, seps: &[char]) -> Vec<String> {
+        let mut result = Vec::new();
+        for &sep in seps {
+            let words: Vec<&str> = text.split(sep).collect();
+            for k in self.keys() {
+                let k = k.as_str();
+                let keys: Vec<&str> = k.split(sep).collect();
+                if text != k && keys.len() >= words.len() && words.iter().all(|p| keys.contains(p))
+                {
+                    result.push(k.to_owned());
+                }
+            }
+        }
+        result
     }
 
     pub fn len(&self) -> usize {

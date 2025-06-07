@@ -17,7 +17,7 @@ impl PyDBCreator {
     }
 
     fn insert(&mut self, key: &str, value: &PyEntry) -> PyResult<()> {
-        Ok(self.db.insert(key, value.to_entry())?)
+        Ok(self.db.insert(key, Entry::from(value))?)
     }
 
     fn export(&mut self) -> PyResult<()> {

@@ -5,7 +5,7 @@ from os import remove
 value = PyEntry("phonetic", "definition", "translation", ["exchange1", "exchanges2"])
 
 creator = PyDBCreator("test.db", "Name", "名称")
-for i in range(2):
+for i in range(100):
     creator.insert(f"test{i}", value)
 creator.export()
 
@@ -15,7 +15,7 @@ assert reader["test1"].exchanges == ["exchange1", "exchanges2"]
 assert reader["test1"].phonetic == "phonetic"
 assert reader["test1"].definition == "definition"
 assert reader["test1"].translation == "translation"
-assert set(iter(reader)) == {"test0", "test1"}
+assert reader["tost99"].matched == True
 assert reader.name == "Name"
 assert reader.name_zh == "名称"
 
