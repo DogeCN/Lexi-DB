@@ -9,18 +9,21 @@ pub struct Matcher {
 }
 
 impl Matcher {
-    pub fn new(candidates: Vec<Arc<String>>) -> Self {
-        let n = 2;
-        let mut index: HashMap<u64, Vec<usize>> = HashMap::new();
-        for (idx, cand) in candidates.iter().enumerate() {
-            for hash in Self::ngram_signature(cand, n) {
-                index.entry(hash).or_default().push(idx);
-            }
-        }
+    pub fn new() -> Self {
         Self {
-            candidates,
-            index,
-            n,
+            candidates: Vec::new(),
+            index: HashMap::new(),
+            n: 2,
+        }
+    }
+
+    pub fn add(&mut self, candidates: Vec<Arc<String>>) {
+        let lenth = self.candidates.len();
+        for (offset, candidate) in candidates.into_iter().enumerate() {
+            for hash in Self::ngram_signature(&candidate, self.n) {
+                self.index.entry(hash).or_default().push(lenth + offset);
+            }
+            self.candidates.push(candidate);
         }
     }
 
@@ -30,9 +33,9 @@ impl Matcher {
             .iter()
             .filter_map(|hash| self.index.get(hash))
             .flat_map(|indices| indices.iter())
-            .for_each(|idx| {
+            .for_each(|&id| {
                 counter
-                    .entry(*idx)
+                    .entry(id)
                     .and_modify(|e| e.add_assign(1))
                     .or_insert(1);
             });

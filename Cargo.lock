@@ -16,9 +16,9 @@ checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
 
 [[package]]
 name = "cc"
-version = "1.2.21"
+version = "1.2.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8691782945451c1c383942c4874dbe63814f61cb57ef773cda2972682b7bb3c0"
+checksum = "956a5e21988b87f372569b66183b78babf23ebc2e744b733e4350a752c4dafac"
 dependencies = [
  "shlex",
 ]
@@ -42,7 +42,6 @@ dependencies = [
 name = "db"
 version = "0.2.0"
 dependencies = [
- "matcher",
  "serialization",
  "xz2",
 ]
@@ -294,6 +293,7 @@ name = "tests"
 version = "0.1.0"
 dependencies = [
  "db",
+ "matcher",
  "rand",
  "serialization",
 ]

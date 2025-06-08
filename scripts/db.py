@@ -1,5 +1,5 @@
 from db.creator import PyDBCreator, PyEntry
-from db.reader import PyDBReader
+from db.reader import PyDBReader, PyMatcher
 from os import remove
 
 value = PyEntry("phonetic", "definition", "translation", ["exchange1", "exchanges2"])
@@ -15,10 +15,14 @@ assert reader["test1"].exchanges == ["exchange1", "exchanges2"]
 assert reader["test1"].phonetic == "phonetic"
 assert reader["test1"].definition == "definition"
 assert reader["test1"].translation == "translation"
-assert reader["tost99"].matched == True
 assert reader.name == "Name"
 assert reader.name_zh == "名称"
 
-remove("test.db")
+# 新增：测试 PyMatcher 批量 combine 和 find
+matcher = PyMatcher()
+matcher.combine(reader)
+assert matcher.find("test1") == "test1"
+assert matcher.find("notfound") is not None
 
+remove("test.db")
 print("All tests passed!")

@@ -1,12 +1,14 @@
 #![cfg(test)]
 
 use db::{DBCreator, DBReader};
+use matcher::Matcher;
 use rand::distr::{Alphanumeric, SampleString};
 use rand::prelude::*;
 use rand::rng;
 use serialization::{Deserialize, Serialize};
 use std::fs;
 use std::io::Cursor;
+use std::sync::Arc;
 
 fn create_test_db(db_file: &str, pairs: &[(String, String)]) -> DBCreator<String> {
     let _ = fs::remove_file(db_file);
@@ -159,25 +161,18 @@ fn test_keys_methods() {
 
 #[test]
 fn test_matches() {
-    let db_file = "test_matches.db";
-    let pairs = vec![
-        ("apple".to_owned(), "fruit".to_owned()),
-        ("banana".to_owned(), "fruit".to_owned()),
-        ("applause".to_owned(), "clap".to_owned()),
-        ("苹果".to_owned(), "水果".to_owned()),
+    let mut matcher = Matcher::new();
+    let candidates = vec![
+        Arc::new("apple".to_string()),
+        Arc::new("banana".to_string()),
+        Arc::new("applause".to_string()),
+        Arc::new("苹果".to_string()),
     ];
-    create_test_db(db_file, &pairs);
-    let mut reader: DBReader<String> =
-        DBReader::from(db_file, format!("{}.values", db_file).as_str()).unwrap();
-    reader.load().unwrap();
-
-    assert_eq!(reader.matches("appl").unwrap(), "fruit");
-    assert_eq!(reader.matches("banan").unwrap(), "fruit");
-
-    assert_eq!(reader.matches("苹").unwrap(), "水果");
-
-    println!("notfound -> {:?}", reader.matches("notfound").unwrap());
-    let _ = std::fs::remove_file(db_file);
+    matcher.add(candidates.clone());
+    assert_eq!(matcher.find("appl"), Some("apple"));
+    assert_eq!(matcher.find("banan"), Some("banana"));
+    assert_eq!(matcher.find("苹"), Some("苹果"));
+    assert!(matcher.find("notfound").is_some());
 }
 
 #[test]

@@ -5,8 +5,6 @@ use pyo3::prelude::*;
 #[pyclass]
 pub struct PyEntry {
     #[pyo3(get, set)]
-    pub matched: bool,
-    #[pyo3(get, set)]
     pub phonetic: String,
     #[pyo3(get, set)]
     pub definition: String,
@@ -26,7 +24,6 @@ impl PyEntry {
         exchanges: Vec<String>,
     ) -> Self {
         PyEntry {
-            matched: false,
             phonetic: phonetic.to_owned(),
             definition: definition.to_owned(),
             translation: translation.to_owned(),
@@ -35,22 +32,9 @@ impl PyEntry {
     }
 }
 
-impl PyEntry {
-    pub fn from_matched(entry: Entry) -> Self {
-        PyEntry {
-            matched: true,
-            phonetic: entry.phonetic.clone(),
-            definition: entry.definition.clone(),
-            translation: entry.translation.clone(),
-            exchanges: entry.exchanges.clone(),
-        }
-    }
-}
-
 impl From<Entry> for PyEntry {
     fn from(entry: Entry) -> Self {
         PyEntry {
-            matched: false,
             phonetic: entry.phonetic.clone(),
             definition: entry.definition.clone(),
             translation: entry.translation.clone(),

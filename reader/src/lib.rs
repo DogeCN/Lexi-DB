@@ -1,5 +1,6 @@
 use db::DBReader;
 use entry::{Entry, PyEntry};
+use matcher::Matcher;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -44,14 +45,8 @@ impl PyDBReader {
         })
     }
 
-    fn __getitem__(&mut self, py: Python<'_>, key: &str) -> Option<PyEntry> {
-        py.allow_threads(|| {
-            self.db.get(key).map(|entry| entry.into()).or_else(|| {
-                self.db
-                    .matches(key)
-                    .map(|entry| PyEntry::from_matched(entry))
-            })
-        })
+    fn __getitem__(&mut self, key: &str) -> Option<PyEntry> {
+        self.db.get(key).map(|e| e.into())
     }
 
     fn __len__(&self) -> usize {
@@ -63,9 +58,33 @@ impl PyDBReader {
     }
 }
 
+#[pyclass]
+struct PyMatcher {
+    matcher: Matcher,
+}
+
+#[pymethods]
+impl PyMatcher {
+    #[new]
+    fn new() -> Self {
+        PyMatcher {
+            matcher: Matcher::new(),
+        }
+    }
+
+    fn combine(&mut self, py: Python<'_>, reader: &PyDBReader) {
+        py.allow_threads(|| self.matcher.add(reader.db.keys()));
+    }
+
+    fn find(&self, py: Python<'_>, word: &str) -> Option<&str> {
+        py.allow_threads(|| self.matcher.find(word))
+    }
+}
+
 #[pymodule]
 fn reader(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<PyEntry>()?;
     m.add_class::<PyDBReader>()?;
+    m.add_class::<PyMatcher>()?;
     Ok(())
 }

@@ -9,5 +9,8 @@ path = "../db"
 [dependencies.serialization]
 path = "../serialization"
 
+[dependencies.matcher]
+path = "../matcher"
+
 [dev-dependencies]
 rand = "0.9"
