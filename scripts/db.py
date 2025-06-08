@@ -21,7 +21,7 @@ assert reader.name_zh == "名称"
 # 新增：测试 PyMatcher 批量 combine 和 find
 matcher = PyMatcher()
 matcher.combine(reader)
-assert matcher.find("test1") == "test1"
+assert matcher.find("tost99") == "test99"
 assert matcher.find("notfound") is not None
 
 remove("test.db")
