@@ -18,11 +18,10 @@ assert reader["test1"].translation == "translation"
 assert reader.name == "Name"
 assert reader.name_zh == "名称"
 
-# 新增：测试 PyMatcher 批量 combine 和 find
 matcher = PyMatcher()
 matcher.combine(reader)
 assert matcher.find("tost99") == "test99"
-assert matcher.find("notfound") is not None
+assert matcher.find("notfound") is None
 
 remove("test.db")
 print("All tests passed!")

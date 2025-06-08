@@ -1,11 +1,19 @@
 use db::DBReader;
 use entry::{Entry, PyEntry};
-use matcher::Matcher;
+use matcher::{Matcher, Part};
 use pyo3::prelude::*;
+use std::sync::{Arc, Mutex};
 
 #[pyclass]
 struct PyDBReader {
     db: DBReader<Entry>,
+    part: Option<Arc<Mutex<Part>>>,
+}
+
+impl PyDBReader {
+    fn with(&mut self, part: Arc<Mutex<Part>>) {
+        self.part = Some(part);
+    }
 }
 
 #[pymethods]
@@ -13,7 +21,7 @@ impl PyDBReader {
     #[new]
     fn new(path: &str, temp: &str) -> PyResult<Self> {
         let db = DBReader::from(path, temp)?;
-        Ok(PyDBReader { db })
+        Ok(PyDBReader { db, part: None })
     }
 
     fn load(&mut self, py: Python<'_>) -> PyResult<()> {
@@ -28,6 +36,16 @@ impl PyDBReader {
     #[getter]
     fn name_zh(&self) -> &str {
         self.db.name_zh.as_str()
+    }
+
+    #[getter]
+    fn enabled(&self) -> bool {
+        self.part.as_ref().unwrap().lock().unwrap().enabled
+    }
+
+    #[setter]
+    fn set_enabled(&mut self, enabled: bool) {
+        self.part.as_ref().unwrap().lock().unwrap().enabled = enabled;
     }
 
     fn filter(
@@ -72,8 +90,8 @@ impl PyMatcher {
         }
     }
 
-    fn combine(&mut self, py: Python<'_>, reader: &PyDBReader) {
-        py.allow_threads(|| self.matcher.add(reader.db.keys()));
+    fn combine(&mut self, py: Python<'_>, reader: &mut PyDBReader) {
+        py.allow_threads(|| reader.with(self.matcher.add(reader.db.keys())));
     }
 
     fn find(&self, py: Python<'_>, word: &str) -> Option<&str> {
