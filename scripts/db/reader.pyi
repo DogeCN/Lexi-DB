@@ -4,6 +4,14 @@ class PyEntry:
     translation: str
     exchanges: list[str]
 
+    def __init__(
+        self,
+        phonetic: str,
+        definition: str,
+        translation: str,
+        exchanges: list[str],
+    ): ...
+
 class PyDBReader:
     name: str
     name_zh: str
@@ -19,3 +27,4 @@ class PyMatcher:
     def __init__(self): ...
     def combine(self, reader: PyDBReader) -> None: ...
     def find(self, word: str) -> str | None: ...
+    def random(self) -> str: ...

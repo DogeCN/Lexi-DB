@@ -82,6 +82,10 @@ impl PyMatcher {
     fn find(&self, py: Python<'_>, word: &str) -> Option<&str> {
         py.allow_threads(|| self.matcher.find(word))
     }
+
+    fn random(&self) -> &str {
+        self.matcher.random()
+    }
 }
 
 #[pymodule]

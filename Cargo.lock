@@ -99,6 +99,9 @@ dependencies = [
 [[package]]
 name = "matcher"
 version = "0.1.0"
+dependencies = [
+ "rand",
+]
 
 [[package]]
 name = "memoffset"

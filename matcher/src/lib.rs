@@ -1,3 +1,4 @@
+use rand::random;
 use std::{
     cmp::Reverse,
     collections::HashMap,
@@ -83,6 +84,10 @@ impl Matcher {
             })
             .min_by_key(|&(d, _)| d)
             .and_then(|(d, cand)| (d < THRESHOLD).then_some(cand))
+    }
+
+    pub fn random<'a>(&'a self) -> &'a str {
+        self.candidates[(random::<u64>() % self.candidates.len() as u64) as usize].as_str()
     }
 }
 
