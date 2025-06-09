@@ -79,11 +79,11 @@ impl PyMatcher {
         py.allow_threads(|| reader.with(self.matcher.add(reader.db.keys())));
     }
 
-    fn find(&self, py: Python<'_>, word: &str) -> Option<&str> {
+    fn find(&self, py: Python<'_>, word: &str) -> Option<String> {
         py.allow_threads(|| self.matcher.find(word))
     }
 
-    fn random(&self) -> &str {
+    fn random(&self) -> Option<String> {
         self.matcher.random()
     }
 }

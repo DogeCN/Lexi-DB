@@ -1,8 +1,8 @@
-use rand::random;
+use rand::seq::IteratorRandom;
 use std::{
     cmp::Reverse,
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 const N: usize = 3;
@@ -10,84 +10,82 @@ const THRESHOLD: usize = 5;
 
 pub struct Part {
     pub enabled: bool,
+    candidates: Vec<Arc<String>>,
     index: HashMap<u64, Vec<usize>>,
 }
 
 impl Part {
-    pub fn new(candidates: &[Arc<String>], offset: usize) -> Self {
+    pub fn new(candidates: Vec<Arc<String>>) -> Self {
         let mut index: HashMap<u64, Vec<usize>> = HashMap::new();
-        candidates.iter().enumerate().for_each(|(id, c)| {
+        for (id, c) in candidates.iter().enumerate() {
             ngram_signature(c).into_iter().for_each(|h| {
-                index.entry(h).or_default().push(id + offset);
+                index.entry(h).or_default().push(id);
             });
-        });
+        }
         Self {
             enabled: true,
+            candidates,
             index,
         }
     }
 
-    fn count(&self, counter: &mut HashMap<usize, usize>, signature: &Vec<u64>) {
+    fn count(&self, counter: &mut HashMap<Arc<String>, usize>, signature: &Vec<u64>) {
         signature
-            .into_iter()
+            .iter()
             .filter_map(|h| self.index.get(h))
             .flatten()
             .for_each(|&id| {
-                *counter.entry(id).or_insert(0) += 1;
+                let cand = self.candidates[id].clone();
+                *counter.entry(cand).or_insert(0) += 1;
             });
     }
 }
 
 pub struct Matcher {
-    candidates: Vec<Arc<String>>,
     parts: Vec<Arc<Mutex<Part>>>,
-    count: usize,
 }
 
 impl Matcher {
     pub fn new() -> Self {
-        Self {
-            candidates: vec![],
-            parts: vec![],
-            count: 0,
-        }
+        Self { parts: vec![] }
     }
 
     pub fn add(&mut self, candidates: Vec<Arc<String>>) -> Arc<Mutex<Part>> {
-        let part = Arc::new(Mutex::new(Part::new(&candidates, self.count)));
-        self.count += candidates.len();
-        self.candidates.extend(candidates);
+        let part = Arc::new(Mutex::new(Part::new(candidates)));
         self.parts.push(part.clone());
         part
     }
 
-    pub fn find<'a>(&'a self, target: &str) -> Option<&'a str> {
-        let mut counter = HashMap::new();
+    pub fn find(&self, target: &str) -> Option<String> {
+        let mut counter: HashMap<Arc<String>, usize> = HashMap::new();
         let signature = ngram_signature(target);
+        for p in self.enabled() {
+            p.count(&mut counter, &signature);
+        }
+        let mut v: Vec<(Arc<String>, usize)> = counter.into_iter().collect();
+        v.sort_unstable_by_key(|&(_, c)| Reverse(c));
+        v.truncate(30);
+        v.into_iter()
+            .filter_map(|(c, _)| levenshtein_distance(target, &c).map(|d| (d, c)))
+            .min_by_key(|&(d, _)| d)
+            .and_then(|(d, c)| (d < THRESHOLD).then_some(c.to_string()))
+    }
+
+    pub fn random(&self) -> Option<String> {
+        let mut rng = rand::rng();
+        self.enabled()
+            .choose(&mut rng)?
+            .candidates
+            .iter()
+            .choose(&mut rng)
+            .map(|s| s.to_string())
+    }
+
+    fn enabled<'a>(&'a self) -> impl Iterator<Item = MutexGuard<'a, Part>> {
         self.parts
             .iter()
             .filter_map(|p| p.lock().ok())
             .filter(|p| p.enabled)
-            .for_each(|p| p.count(&mut counter, &signature));
-        let indices: Vec<usize> = if counter.is_empty() {
-            (0..self.candidates.len()).collect()
-        } else {
-            let mut v: Vec<(usize, usize)> = counter.into_iter().collect();
-            v.sort_unstable_by_key(|&(_, c)| Reverse(c));
-            v.into_iter().take(30).map(|(i, _)| i).collect()
-        };
-        indices
-            .into_iter()
-            .filter_map(|i| {
-                let cand = self.candidates[i].as_str();
-                levenshtein_distance(target, cand).map(|d| (d, cand))
-            })
-            .min_by_key(|&(d, _)| d)
-            .and_then(|(d, cand)| (d < THRESHOLD).then_some(cand))
-    }
-
-    pub fn random<'a>(&'a self) -> &'a str {
-        self.candidates[(random::<u64>() % self.candidates.len() as u64) as usize].as_str()
     }
 }
 

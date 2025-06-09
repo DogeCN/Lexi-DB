@@ -169,10 +169,10 @@ fn test_matches() {
         Arc::new("苹果".to_string()),
     ];
     matcher.add(candidates.clone());
-    assert_eq!(matcher.find("appl"), Some("apple"));
-    assert_eq!(matcher.find("banan"), Some("banana"));
-    assert_eq!(matcher.find("苹"), Some("苹果"));
-    assert!(matcher.find("notfound").is_some());
+    assert_eq!(matcher.find("appl").as_deref(), Some("apple"));
+    assert_eq!(matcher.find("banan").as_deref(), Some("banana"));
+    assert_eq!(matcher.find("苹").as_deref(), Some("苹果"));
+    assert!(matcher.find("notfound").is_none());
 }
 
 #[test]
