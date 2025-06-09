@@ -38,14 +38,10 @@ impl PyDBReader {
         self.db.name_zh.as_str()
     }
 
-    #[getter]
-    fn enabled(&self) -> bool {
-        self.part.as_ref().unwrap().lock().unwrap().enabled
-    }
-
-    #[setter]
     fn set_enabled(&mut self, enabled: bool) {
-        self.part.as_ref().unwrap().lock().unwrap().enabled = enabled;
+        if let Some(part) = &self.part {
+            part.lock().unwrap().enabled = enabled;
+        }
     }
 
     fn filter(
