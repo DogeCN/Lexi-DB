@@ -35,10 +35,10 @@ impl PyEntry {
 impl From<Entry> for PyEntry {
     fn from(entry: Entry) -> Self {
         PyEntry {
-            phonetic: entry.phonetic.clone(),
-            definition: entry.definition.clone(),
-            translation: entry.translation.clone(),
-            exchanges: entry.exchanges.clone(),
+            phonetic: entry.phonetic,
+            definition: entry.definition,
+            translation: entry.translation,
+            exchanges: entry.exchanges,
         }
     }
 }

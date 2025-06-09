@@ -44,19 +44,8 @@ impl PyDBReader {
         }
     }
 
-    fn filter(
-        &self,
-        py: Python<'_>,
-        reader: &mut PyDBReader,
-        word: &str,
-        seps: Vec<char>,
-    ) -> Vec<PyEntry> {
-        py.allow_threads(|| {
-            let keys = reader.db.filter_keys(word, &seps);
-            keys.iter()
-                .filter_map(|k| reader.db.get(k).map(|e| e.into()))
-                .collect()
-        })
+    fn filter(&self, py: Python<'_>, word: &str, seps: Vec<char>) -> Vec<String> {
+        py.allow_threads(|| self.db.filter_keys(word, &seps))
     }
 
     fn __getitem__(&mut self, key: &str) -> Option<PyEntry> {
