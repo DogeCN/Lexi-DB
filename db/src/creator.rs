@@ -39,13 +39,13 @@ impl<T: Serialize> DBCreator<T> {
         })
     }
 
-    pub fn insert(&mut self, key: &str, value: impl Into<T>) -> Result<()> {
+    pub fn insert(&mut self, key: &str, value: &T) -> Result<()> {
         let mut buf = Vec::new();
         buf.extend(key.serialize());
         buf.extend(self.total.serialize());
         self.file_key.as_ref().unwrap().write_all(&buf)?;
 
-        let buf = value.into().serialize();
+        let buf = value.serialize();
         self.total += buf.len();
         self.file_values.as_ref().unwrap().write_all(&buf)?;
         self.count += 1;

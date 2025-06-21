@@ -4,6 +4,7 @@ use std::{
     fs::File,
     io::{Result, Seek, SeekFrom, copy},
     marker::PhantomData,
+    path::PathBuf,
     sync::Arc,
 };
 use xz2::read::XzDecoder;
@@ -14,7 +15,7 @@ pub struct DBReader<T> {
     pub name_zh: String,
     pub indexes: HashMap<Arc<String>, usize>,
     decoder: Option<XzDecoder<File>>,
-    temp: String,
+    temp: PathBuf,
     value: Option<File>,
 }
 
@@ -29,22 +30,33 @@ impl<T: Deserialize> DBReader<T> {
             name_zh,
             indexes: HashMap::new(),
             decoder: Some(decoder),
-            temp: temp.to_owned(),
+            temp: PathBuf::from(temp),
             value: None,
         })
     }
 
     pub fn load(&mut self) -> Result<()> {
         let mut decoder = self.decoder.take().unwrap();
-        for _ in 0..usize::deserialize(&mut decoder)? {
+        match self.load_with_decoder(&mut decoder) {
+            Err(e) => {
+                self.decoder = Some(decoder);
+                Err(e)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn load_with_decoder(&mut self, decoder: &mut XzDecoder<File>) -> Result<()> {
+        for _ in 0..usize::deserialize(decoder)? {
             self.indexes.insert(
-                Arc::new(String::deserialize(&mut decoder)?),
-                usize::deserialize(&mut decoder)?,
+                Arc::new(String::deserialize(decoder)?),
+                usize::deserialize(decoder)?,
             );
         }
-        copy(&mut decoder, &mut File::create(&self.temp)?)?;
+        if !self.temp.exists() {
+            copy(decoder, &mut File::create(&self.temp)?)?;
+        }
         self.value = Some(File::open(&self.temp)?);
-        self.decoder = Some(decoder);
         Ok(())
     }
 
@@ -87,12 +99,5 @@ impl<T: Deserialize> DBReader<T> {
         let mut file = self.value.as_ref().unwrap();
         file.seek(SeekFrom::Start(offset))?;
         Ok(T::deserialize(&mut file)?)
-    }
-}
-
-impl<T> Drop for DBReader<T> {
-    fn drop(&mut self) {
-        self.value.take();
-        let _ = std::fs::remove_file(&self.temp);
     }
 }

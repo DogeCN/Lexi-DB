@@ -103,3 +103,20 @@ impl<T: Deserialize> Deserialize for Vec<T> {
         Ok(buf)
     }
 }
+
+impl Serialize for Vec<u8> {
+    fn serialize(&self) -> Vec<u8> {
+        let mut buf = self.len().serialize();
+        buf.extend(self);
+        buf
+    }
+}
+
+impl Deserialize for Vec<u8> {
+    fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
+        let len = usize::deserialize(r)?;
+        let mut buf = vec![0; len];
+        r.read_exact(&mut buf)?;
+        Ok(buf)
+    }
+}

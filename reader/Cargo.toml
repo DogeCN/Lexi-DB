@@ -7,6 +7,9 @@ edition = "2024"
 name = "reader"
 crate-type = ["cdylib"]
 
+[dependencies]
+rand = "0.*"
+
 [dependencies.pyo3]
 version = "0.*"
 features = ["extension-module"]
@@ -16,6 +19,3 @@ path = "../db"
 
 [dependencies.entry]
 path = "../entry"
-
-[dependencies.matcher]
-path = "../matcher"

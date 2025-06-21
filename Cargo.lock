@@ -97,13 +97,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "matcher"
-version = "0.1.0"
-dependencies = [
- "rand",
-]
-
-[[package]]
 name = "memoffset"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -260,8 +253,8 @@ version = "0.3.0"
 dependencies = [
  "db",
  "entry",
- "matcher",
  "pyo3",
+ "rand",
 ]
 
 [[package]]
@@ -296,7 +289,6 @@ name = "tests"
 version = "0.1.0"
 dependencies = [
  "db",
- "matcher",
  "rand",
  "serialization",
 ]

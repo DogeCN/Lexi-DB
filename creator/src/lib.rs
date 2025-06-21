@@ -1,5 +1,5 @@
 use db::DBCreator;
-use entry::{Entry, PyEntry};
+use entry::Entry;
 use pyo3::prelude::*;
 
 #[pyclass]
@@ -16,8 +16,8 @@ impl PyDBCreator {
         })
     }
 
-    fn insert(&mut self, key: &str, value: &PyEntry) -> PyResult<()> {
-        Ok(self.db.insert(key, Entry::from(value))?)
+    fn insert(&mut self, key: &str, value: &Entry) -> PyResult<()> {
+        Ok(self.db.insert(key, value)?)
     }
 
     fn export(&mut self) -> PyResult<()> {
@@ -27,7 +27,7 @@ impl PyDBCreator {
 
 #[pymodule]
 fn creator(m: &Bound<PyModule>) -> PyResult<()> {
-    m.add_class::<PyEntry>()?;
+    m.add_class::<Entry>()?;
     m.add_class::<PyDBCreator>()?;
     Ok(())
 }

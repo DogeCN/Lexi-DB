@@ -1,9 +1,9 @@
-mod entry;
-pub use entry::Entry;
 use pyo3::prelude::*;
+use serialization::*;
 
 #[pyclass]
-pub struct PyEntry {
+#[derive(Default)]
+pub struct Entry {
     #[pyo3(get, set)]
     pub phonetic: String,
     #[pyo3(get, set)]
@@ -14,45 +14,24 @@ pub struct PyEntry {
     pub exchanges: Vec<String>,
 }
 
-#[pymethods]
-impl PyEntry {
-    #[new]
-    pub fn new(
-        phonetic: &str,
-        definition: &str,
-        translation: &str,
-        exchanges: Vec<String>,
-    ) -> Self {
-        PyEntry {
-            phonetic: phonetic.to_owned(),
-            definition: definition.to_owned(),
-            translation: translation.to_owned(),
-            exchanges,
-        }
+impl Serialize for Entry {
+    fn serialize(&self) -> Vec<u8> {
+        let mut stack = vec![&self.phonetic, &self.definition, &self.translation];
+        stack.extend(&self.exchanges);
+        stack.serialize()
     }
 }
 
-impl From<Entry> for PyEntry {
-    fn from(entry: Entry) -> Self {
-        PyEntry {
-            phonetic: entry.phonetic,
-            definition: entry.definition,
-            translation: entry.translation,
-            exchanges: entry.exchanges,
-        }
-    }
-}
-
-impl From<&PyEntry> for Entry {
-    fn from(entry: &PyEntry) -> Self {
-        {
-            let entry: &PyEntry = &entry;
-            Entry {
-                phonetic: entry.phonetic.clone(),
-                definition: entry.definition.clone(),
-                translation: entry.translation.clone(),
-                exchanges: entry.exchanges.clone(),
-            }
-        }
+impl Deserialize for Entry {
+    fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
+        Ok(match Vec::<String>::deserialize(r)?.as_slice() {
+            [first, second, third, rest @ ..] => Entry {
+                phonetic: first.clone(),
+                definition: second.clone(),
+                translation: third.clone(),
+                exchanges: rest.to_vec(),
+            },
+            _ => Entry::default(),
+        })
     }
 }
