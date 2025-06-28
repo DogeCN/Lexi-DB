@@ -3,15 +3,15 @@ use entry::Entry;
 use pyo3::prelude::*;
 
 #[pyclass]
-struct PyDBCreator {
+struct Creator {
     db: DBCreator<Entry>,
 }
 
 #[pymethods]
-impl PyDBCreator {
+impl Creator {
     #[new]
     fn new(path: &str, name: &str, name_zh: &str) -> PyResult<Self> {
-        Ok(PyDBCreator {
+        Ok(Creator {
             db: DBCreator::new(path, name, name_zh)?,
         })
     }
@@ -27,7 +27,7 @@ impl PyDBCreator {
 
 #[pymodule]
 fn creator(m: &Bound<PyModule>) -> PyResult<()> {
+    m.add_class::<Creator>()?;
     m.add_class::<Entry>()?;
-    m.add_class::<PyDBCreator>()?;
     Ok(())
 }

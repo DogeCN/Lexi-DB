@@ -67,28 +67,8 @@ impl<T: Deserialize> DBReader<T> {
         }
     }
 
-    pub fn filter_keys(&self, text: &str, seps: &[char]) -> Vec<String> {
-        let mut result = Vec::new();
-        for &sep in seps {
-            let words: Vec<&str> = text.split(sep).collect();
-            for k in self.keys() {
-                let k = k.as_str();
-                let keys: Vec<&str> = k.split(sep).collect();
-                if text != k && keys.len() >= words.len() && words.iter().all(|p| keys.contains(p))
-                {
-                    result.push(k.to_owned());
-                }
-            }
-        }
-        result
-    }
-
     pub fn len(&self) -> usize {
         self.indexes.len()
-    }
-
-    pub fn keys(&self) -> Vec<Arc<String>> {
-        self.indexes.keys().cloned().collect()
     }
 
     pub fn contains(&self, key: &str) -> bool {

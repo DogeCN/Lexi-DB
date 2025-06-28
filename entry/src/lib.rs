@@ -14,6 +14,24 @@ pub struct Entry {
     pub exchanges: Vec<String>,
 }
 
+#[pymethods]
+impl Entry {
+    #[new]
+    pub fn new(
+        phonetic: String,
+        definition: String,
+        translation: String,
+        exchanges: Vec<String>,
+    ) -> Self {
+        Entry {
+            phonetic,
+            definition,
+            translation,
+            exchanges,
+        }
+    }
+}
+
 impl Serialize for Entry {
     fn serialize(&self) -> Vec<u8> {
         let mut stack = vec![&self.phonetic, &self.definition, &self.translation];

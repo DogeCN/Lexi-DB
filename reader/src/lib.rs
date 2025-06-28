@@ -2,101 +2,90 @@ use db::DBReader;
 use entry::Entry;
 use pyo3::prelude::*;
 use rand::seq::IteratorRandom;
+use std::io::Result;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::{cmp::Reverse, collections::HashMap};
 
 const N: usize = 3;
 const THRESHOLD: usize = 5;
 
-#[pyclass]
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum DataState {
-    Unloaded,
-    Loading,
-    Loaded,
-    Error,
+pub enum State {
+    Unloaded(),
+    Loading(),
+    Loaded(bool),
+    Error(),
 }
 
 #[pyclass]
-pub struct State {
-    pub enabled: bool,
-    pub data_state: DataState,
+struct Manager {
+    readers: Vec<Arc<Mutex<Reader>>>,
 }
 
-impl State {
-    pub fn new() -> Self {
-        State {
-            enabled: false,
-            data_state: DataState::Unloaded,
-        }
-    }
-}
-
-pub struct Part {
-    pub state: State,
-    candidates: Vec<Arc<String>>,
-    index: HashMap<u64, Vec<usize>>,
-}
-
-impl Part {
-    pub fn new(candidates: Vec<Arc<String>>, state: &State) -> Self {
-        let mut index: HashMap<u64, Vec<usize>> = HashMap::new();
-        for (id, c) in candidates.iter().enumerate() {
-            ngram_signature(c).into_iter().for_each(|h| {
-                index.entry(h).or_default().push(id);
-            });
-        }
-        Self {
-            state: State {
-                enabled: state.enabled,
-                data_state: state.data_state,
-            },
-            candidates,
-            index,
-        }
+#[pymethods]
+impl Manager {
+    #[new]
+    fn new() -> Self {
+        Self { readers: vec![] }
     }
 
-    fn count(&self, counter: &mut HashMap<Arc<String>, usize>, signature: &Vec<u64>) {
-        signature
-            .iter()
-            .filter_map(|h| self.index.get(h))
-            .flatten()
-            .for_each(|&id| {
-                *counter.entry(self.candidates[id].clone()).or_insert(0) += 1;
-            });
-    }
-}
-
-pub struct Matcher {
-    parts: Vec<Mutex<Part>>,
-}
-
-impl Matcher {
-    pub fn new() -> Self {
-        Self { parts: vec![] }
+    fn create(
+        &mut self,
+        py: Python,
+        path: &str,
+        temp: &str,
+        callback: PyObject,
+    ) -> PyResult<Handle> {
+        callback.call1(py, (0,))?;
+        let reader = Arc::new(Mutex::new(Reader::new(path, temp)?));
+        self.readers.push(reader.clone());
+        Ok(Handle { reader, callback })
     }
 
-    pub fn add(&mut self, candidates: Vec<Arc<String>>, state: &State) {
-        let part = Mutex::new(Part::new(candidates, state));
-        self.parts.push(part);
+    fn find(&self, py: Python, target: &str) -> Option<String> {
+        py.allow_threads(|| {
+            let mut counter: HashMap<Arc<String>, usize> = HashMap::new();
+            let signature = ngram_signature(target);
+            for p in self.enabled() {
+                p.count(&mut counter, &signature);
+            }
+            let mut v: Vec<(Arc<String>, usize)> = counter.into_iter().collect();
+            v.sort_unstable_by_key(|&(_, c)| Reverse(c));
+            v.truncate(30);
+            v.into_iter()
+                .filter_map(|(c, _)| levenshtein_distance(target, c.as_str()).map(|d| (d, c)))
+                .min_by_key(|&(d, _)| d)
+                .and_then(|(d, c)| (d < THRESHOLD).then_some(c.to_string()))
+        })
     }
 
-    pub fn find(&self, target: &str) -> Option<String> {
-        let mut counter: HashMap<Arc<String>, usize> = HashMap::new();
-        let signature = ngram_signature(target);
-        for p in self.enabled() {
-            p.count(&mut counter, &signature);
-        }
-        let mut v: Vec<(Arc<String>, usize)> = counter.into_iter().collect();
-        v.sort_unstable_by_key(|&(_, c)| Reverse(c));
-        v.truncate(30);
-        v.into_iter()
-            .filter_map(|(c, _)| levenshtein_distance(target, c.as_str()).map(|d| (d, c)))
-            .min_by_key(|&(d, _)| d)
-            .and_then(|(d, c)| (d < THRESHOLD).then_some(c.to_string()))
+    fn filter(&self, py: Python, word: &str, seps: Vec<char>) -> Vec<String> {
+        py.allow_threads(|| {
+            let mut result: Vec<String> = Vec::new();
+            for sep in seps {
+                let words: Vec<&str> = word.split(sep).collect();
+                if word.contains(sep) {
+                    for &p in &words {
+                        result.push(p.to_owned());
+                    }
+                }
+                for p in self.enabled() {
+                    for k in &p.candidates {
+                        let k = k.as_str();
+                        let keys: Vec<&str> = k.split(sep).collect();
+                        if word != k
+                            && keys.len() >= words.len()
+                            && words.iter().all(|p| keys.contains(p))
+                        {
+                            result.push(k.to_owned());
+                        }
+                    }
+                }
+            }
+            result
+        })
     }
 
-    pub fn random(&self) -> Option<String> {
+    fn random(&self) -> Option<String> {
         let mut rng = rand::rng();
         self.enabled()
             .choose(&mut rng)?
@@ -106,11 +95,17 @@ impl Matcher {
             .map(|s| s.to_string())
     }
 
-    fn enabled<'a>(&'a self) -> impl Iterator<Item = MutexGuard<'a, Part>> {
-        self.parts
+    fn clear(&mut self) {
+        self.readers.clear();
+    }
+}
+
+impl Manager {
+    fn enabled<'a>(&'a self) -> impl Iterator<Item = MutexGuard<'a, Reader>> {
+        self.readers
             .iter()
             .filter_map(|p| p.lock().ok())
-            .filter(|p| p.state.enabled)
+            .filter(|p| matches!(p.state, State::Loaded(true)))
     }
 }
 
@@ -161,137 +156,128 @@ fn levenshtein_distance(s1: &str, s2: &str) -> Option<usize> {
 }
 
 #[pyclass]
-struct PyDBReader {
-    db: Mutex<DBReader<Entry>>,
-    #[pyo3(get)]
-    path: String,
-    enabled: bool,
-    data_state: DataState,
+struct Handle {
+    reader: Arc<Mutex<Reader>>,
+    callback: PyObject,
+}
+
+impl Handle {
+    fn callback(&self, state: &State) {
+        Python::with_gil(|py| {
+            let _ = self.callback.call1(
+                py,
+                (match state {
+                    State::Unloaded() => 0,
+                    State::Loading() => 1,
+                    State::Loaded(false) => 2,
+                    State::Loaded(true) => 3,
+                    State::Error() => 4,
+                },),
+            );
+        });
+    }
 }
 
 #[pymethods]
-impl PyDBReader {
-    #[new]
-    fn new(path: &str, temp: &str) -> PyResult<Self> {
-        Ok(PyDBReader {
-            db: Mutex::new(DBReader::from(path, temp)?),
-            path: path.to_string(),
-            enabled: false,
-            data_state: DataState::Unloaded,
+impl Handle {
+    fn switch(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.allow_threads(|| {
+            let mut reader = self.reader.lock().unwrap();
+            match reader.state {
+                State::Unloaded() | State::Error() => {
+                    reader.state = State::Loading();
+                    self.callback(&reader.state);
+                    reader.load()?;
+                    reader.state = State::Loaded(true);
+                }
+                State::Loaded(l) => reader.state = State::Loaded(!l),
+                _ => (),
+            }
+            self.callback(&reader.state);
+            Ok(())
         })
     }
 
-    fn enabled(&self) -> bool {
-        self.enabled
+    fn update(&mut self) -> PyResult<()> {
+        self.callback(&self.reader.lock().unwrap().state);
+        Ok(())
     }
 
-    fn set_enabled(&mut self, enabled: bool) {
-        if enabled && self.data_state != DataState::Loaded {
-            self.data_state = DataState::Loading;
-            // 不能在 setter 里用 py.allow_threads，只能在 load 方法里做
-        }
-        self.enabled = enabled;
+    fn reload(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.allow_threads(|| {
+            let mut reader = self.reader.lock().unwrap();
+            reader.state = State::Unloaded();
+            self.callback(&reader.state);
+            Ok(())
+        })
     }
 
-    // 新增 load 方法，带 py 参数，做真正的加载
-    fn load(&mut self, py: Python<'_>) {
-        if self.data_state != DataState::Loaded {
-            self.data_state = DataState::Loading;
-            let result = py.allow_threads(|| self.db.lock().unwrap().load().is_ok());
-            if result {
-                self.data_state = DataState::Loaded;
-                self.enabled = true;
-            } else {
-                self.data_state = DataState::Error;
-                self.enabled = false;
-            }
-        }
-    }
-
-    fn data_state(&self) -> DataState {
-        self.data_state
-    }
-
+    #[getter]
     fn name(&self) -> String {
-        if self.data_state != DataState::Loaded {
-            return String::new();
-        }
-        self.db.lock().unwrap().name.clone()
+        self.reader.lock().unwrap().db.name.clone()
     }
 
+    #[getter]
     fn name_zh(&self) -> String {
-        if self.data_state != DataState::Loaded {
-            return String::new();
-        }
-        self.db.lock().unwrap().name_zh.clone()
-    }
-
-    fn filter(&self, _py: Python<'_>, word: &str, seps: Vec<char>) -> Vec<String> {
-        if self.data_state != DataState::Loaded {
-            return vec![];
-        }
-        self.db.lock().unwrap().filter_keys(word, &seps)
+        self.reader.lock().unwrap().db.name_zh.clone()
     }
 
     fn __getitem__(&mut self, key: &str) -> Option<Entry> {
-        if self.data_state != DataState::Loaded {
-            return None;
-        }
-        self.db.lock().unwrap().get(key).map(|e| e.into())
+        self.reader.lock().unwrap().db.get(key).map(|e| e.into())
     }
 
     fn __len__(&self) -> usize {
-        if self.data_state != DataState::Loaded {
-            return 0;
-        }
-        self.db.lock().unwrap().len()
+        self.reader.lock().unwrap().db.len()
     }
 
     fn __contains__(&self, key: &str) -> bool {
-        if self.data_state != DataState::Loaded {
-            return false;
-        }
-        self.db.lock().unwrap().contains(key)
+        self.reader.lock().unwrap().db.contains(key)
     }
 }
 
-#[pyclass]
-struct PyMatcher {
-    matcher: Matcher,
+struct Reader {
+    db: DBReader<Entry>,
+    state: State,
+    candidates: Vec<Arc<String>>,
+    index: HashMap<u64, Vec<usize>>,
 }
 
-#[pymethods]
-impl PyMatcher {
-    #[new]
-    fn new() -> Self {
-        PyMatcher {
-            matcher: Matcher::new(),
+impl Reader {
+    fn new(path: &str, temp: &str) -> Result<Self> {
+        Ok(Reader {
+            db: DBReader::from(path, temp)?,
+            state: State::Unloaded(),
+            candidates: Vec::new(),
+            index: HashMap::new(),
+        })
+    }
+
+    fn load(&mut self) -> Result<()> {
+        self.db.load()?;
+        for (id, c) in self.db.indexes.keys().enumerate() {
+            ngram_signature(c).into_iter().for_each(|h| {
+                self.index.entry(h).or_default().push(id);
+            });
+            self.candidates.push(c.clone());
         }
+        Ok(())
     }
 
-    fn combine(&mut self, py: Python<'_>, reader: &mut PyDBReader) {
-        let state = State {
-            enabled: reader.enabled,
-            data_state: reader.data_state,
-        };
-        py.allow_threads(|| {
-            if let Ok(g) = reader.db.lock() {
-                self.matcher.add(g.keys(), &state);
-            }
-        });
-    }
-
-    fn find(&self, py: Python<'_>, word: &str) -> Option<String> {
-        py.allow_threads(|| self.matcher.find(word))
-    }
-
-    fn random(&self) -> Option<String> {
-        self.matcher.random()
+    fn count(&self, counter: &mut HashMap<Arc<String>, usize>, signature: &Vec<u64>) {
+        signature
+            .iter()
+            .filter_map(|h| self.index.get(h))
+            .flatten()
+            .for_each(|&id| {
+                *counter.entry(self.candidates[id].clone()).or_insert(0) += 1;
+            });
     }
 }
 
 #[pymodule]
 fn reader(m: &Bound<PyModule>) -> PyResult<()> {
-    m.add_class::<PyMatcher>()?;
+    m.add_class::<Manager>()?;
+    m.add_class::<Handle>()?;
+    m.add_class::<Entry>()?;
     Ok(())
 }

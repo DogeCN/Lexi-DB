@@ -249,7 +249,7 @@ dependencies = [
 
 [[package]]
 name = "reader"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "db",
  "entry",
@@ -283,15 +283,6 @@ name = "target-lexicon"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e502f78cdbb8ba4718f566c418c52bc729126ffd16baee5baa718cf25dd5a69a"
-
-[[package]]
-name = "tests"
-version = "0.1.0"
-dependencies = [
- "db",
- "rand",
- "serialization",
-]
 
 [[package]]
 name = "unicode-ident"
