@@ -1,3 +1,3 @@
 # Lexi-DB
- + A Simple Rust Database
+ + A Simple Rusty Database
  + Binded for Python
