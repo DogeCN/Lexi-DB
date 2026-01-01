@@ -12,6 +12,7 @@ creator.export()
 
 manager = Manager()
 handle = manager.create("test.db", "test.values", print)
+print(handle.name, handle.name_zh)
 handle.switch()
 test1 = manager.get("test1")
 assert test1.exchanges == ["exchange1", "exchanges2"]

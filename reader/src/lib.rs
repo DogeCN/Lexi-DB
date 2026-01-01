@@ -28,14 +28,7 @@ impl Manager {
         Self { readers: vec![] }
     }
 
-    fn create(
-        &mut self,
-        py: Python,
-        path: &str,
-        temp: &str,
-        callback: Py<PyAny>,
-    ) -> PyResult<Handle> {
-        callback.call1(py, (0,))?;
+    fn create(&mut self, path: &str, temp: &str, callback: Py<PyAny>) -> PyResult<Handle> {
         let reader = Arc::new(Mutex::new(Reader::new(path, temp)?));
         self.readers.push(reader.clone());
         Ok(Handle { reader, callback })
@@ -213,15 +206,6 @@ impl Handle {
     fn update(&mut self) -> PyResult<()> {
         self.callback(&self.reader.lock().unwrap().state);
         Ok(())
-    }
-
-    fn reload(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.detach(|| {
-            let mut reader = self.reader.lock().unwrap();
-            reader.state = State::Unloaded();
-            self.callback(&reader.state);
-            Ok(())
-        })
     }
 
     #[getter]
