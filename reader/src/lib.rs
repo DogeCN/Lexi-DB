@@ -41,6 +41,18 @@ impl Manager {
         Ok(Handle { reader, callback })
     }
 
+    fn get(&mut self, py: Python, word: &str) -> Option<Entry> {
+        py.detach(|| {
+            for mut p in self.enabled() {
+                match p.db.get(word) {
+                    Some(e) => return Some(e),
+                    _ => (),
+                }
+            }
+            None
+        })
+    }
+
     fn find(&self, py: Python, target: &str) -> Option<String> {
         py.detach(|| {
             let mut counter: HashMap<Arc<String>, usize> = HashMap::new();
@@ -222,16 +234,8 @@ impl Handle {
         self.reader.lock().unwrap().db.name_zh.clone()
     }
 
-    fn __getitem__(&mut self, key: &str) -> Option<Entry> {
-        self.reader.lock().unwrap().db.get(key).map(|e| e.into())
-    }
-
     fn __len__(&self) -> usize {
         self.reader.lock().unwrap().db.len()
-    }
-
-    fn __contains__(&self, key: &str) -> bool {
-        self.reader.lock().unwrap().db.contains(key)
     }
 }
 
