@@ -33,7 +33,7 @@ impl Manager {
         py: Python,
         path: &str,
         temp: &str,
-        callback: PyObject,
+        callback: Py<PyAny>,
     ) -> PyResult<Handle> {
         callback.call1(py, (0,))?;
         let reader = Arc::new(Mutex::new(Reader::new(path, temp)?));
@@ -42,7 +42,7 @@ impl Manager {
     }
 
     fn find(&self, py: Python, target: &str) -> Option<String> {
-        py.allow_threads(|| {
+        py.detach(|| {
             let mut counter: HashMap<Arc<String>, usize> = HashMap::new();
             let signature = ngram_signature(target);
             for p in self.enabled() {
@@ -59,7 +59,7 @@ impl Manager {
     }
 
     fn filter(&self, py: Python, word: &str, seps: Vec<char>) -> Vec<String> {
-        py.allow_threads(|| {
+        py.detach(|| {
             let mut result: Vec<String> = Vec::new();
             for sep in seps {
                 let words: Vec<&str> = word.split(sep).collect();
@@ -158,12 +158,12 @@ fn levenshtein_distance(s1: &str, s2: &str) -> Option<usize> {
 #[pyclass]
 struct Handle {
     reader: Arc<Mutex<Reader>>,
-    callback: PyObject,
+    callback: Py<PyAny>,
 }
 
 impl Handle {
     fn callback(&self, state: &State) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let _ = self.callback.call1(
                 py,
                 (match state {
@@ -181,7 +181,7 @@ impl Handle {
 #[pymethods]
 impl Handle {
     fn switch(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
+        py.detach(|| {
             let mut reader = self.reader.lock().unwrap();
             match reader.state {
                 State::Unloaded() | State::Error() => {
@@ -204,7 +204,7 @@ impl Handle {
     }
 
     fn reload(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
+        py.detach(|| {
             let mut reader = self.reader.lock().unwrap();
             reader.state = State::Unloaded();
             self.callback(&reader.state);
